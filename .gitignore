@@ -12,6 +12,9 @@
 .externalNativeBuild
 # Files for the ART/Dalvik VM
 *.dex
+.idea
+.idea/*
+
 
 # Java class files
 *.class
