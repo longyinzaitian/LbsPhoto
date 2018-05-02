@@ -14,7 +14,7 @@
 *.dex
 .idea
 .idea/*
-
+keystore.txt
 
 # Java class files
 *.class
