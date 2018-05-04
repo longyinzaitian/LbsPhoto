@@ -4,7 +4,7 @@ Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 27
     defaultConfig {
         applicationId "com.lbsphoto.app"
         minSdkVersion 19
@@ -35,17 +35,31 @@ android {
             signingConfig signingConfigs.release
         }
     }
+
+    sourceSets{
+        main{
+            jniLibs.srcDir 'libs'
+            //说明so的路径为该libs路径，关联所有地图SDK的so文件
+        }
+    }
 }
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    api 'com.android.support:appcompat-v7:26.1.0'
+    api 'com.android.support:appcompat-v7:27.1.1'
     api 'com.android.support.constraint:constraint-layout:1.1.0'
     testImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.1'
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+    androidTestImplementation 'com.android.support.test:runner:1.0.2'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     api files('libs/AMap_2DMap_v2.6.0_20150916.jar')
     api files('libs/AMap_Search_v2.6.0_20150914.jar')
     api files('libs/AMap_Location_V2.4.0_20160308.jar')
-    api 'com.android.support:cardview-v7:26.1.0'
+    api 'com.android.support:cardview-v7:27.1.1'
+    api('com.github.hotchemi:permissionsdispatcher:3.2.0') {
+        // if you don't use android.app.Fragment you can exclude support for them
+        exclude module: "support-v13"
+    }
+    annotationProcessor "com.github.hotchemi:permissionsdispatcher-processor:3.2.0"
+    api 'com.github.bumptech.glide:glide:3.8.0'
+    implementation files('libs/BaiduLBS_Android.jar')
 }
