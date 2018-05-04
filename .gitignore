@@ -4,8 +4,16 @@
 *.iml
 .gradle
 /local.properties
+/.idea
+/.idea/*
 /.idea/workspace.xml
 /.idea/libraries
+/.idea/modules.xml
+/.idea/caches/*
+.idea/caches/*
+.idea/modules.xml
+.idea/*.xml
+.gitignore
 .DS_Store
 /build
 /captures
@@ -50,6 +58,9 @@ captures/
 .idea/gradle.xml
 .idea/dictionaries
 .idea/libraries
+.idea/modules.xml
+.idea/
+.idea/*
 
 # Keystore files
 *.jks
