@@ -61,6 +61,8 @@
             android:screenOrientation="portrait"/>
         <activity android:name=".activity.GridImageActivity"
             android:screenOrientation="portrait"/>
+        <activity android:name=".activity.ImageInfoActivity"
+            android:screenOrientation="portrait"/>
 
         <provider
             android:name="android.support.v4.content.FileProvider"

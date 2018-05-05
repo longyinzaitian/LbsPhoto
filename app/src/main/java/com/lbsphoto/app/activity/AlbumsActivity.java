@@ -60,6 +60,13 @@ public class AlbumsActivity extends BaseActivity {
 				startActivity(intent);
 			}
 		});
+
+		findViewById(R.id.image_item_return).setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				finish();
+			}
+		});
 	}
 	@Override
 	protected void onDestroy() {

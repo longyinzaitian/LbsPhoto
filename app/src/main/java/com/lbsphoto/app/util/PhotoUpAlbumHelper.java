@@ -1,19 +1,11 @@
 package com.lbsphoto.app.util;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.provider.MediaStore.Audio.Albums;
 import android.provider.MediaStore.Images.Media;
@@ -21,10 +13,15 @@ import android.provider.MediaStore.Images.Thumbnails;
 import android.util.Log;
 
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.mapapi.search.geocode.GeoCoder;
-import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
 
 public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 
@@ -40,7 +37,7 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 	
 	private PhotoUpAlbumHelper() {}
 	public static PhotoUpAlbumHelper getHelper() {
-		PhotoUpAlbumHelper instance = new PhotoUpAlbumHelper();
+	    PhotoUpAlbumHelper instance = new PhotoUpAlbumHelper();
 		return instance;
 	}
 
@@ -141,7 +138,7 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 	/**
 	 * 得到图片集
 	 */
-	void buildImagesBucketList() {
+	void buildImagesBucketList(Uri uri) {
 		// 构造缩略图索引
 		getThumbnail();
 		// 构造相册索引
@@ -149,7 +146,7 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 				Media.PICASA_ID, Media.DATA, Media.DISPLAY_NAME, Media.TITLE,
 				Media.SIZE, Media.BUCKET_DISPLAY_NAME };
 		// 得到一个游标
-		Cursor cur = cr.query(Media.EXTERNAL_CONTENT_URI, columns, null, null,
+		Cursor cur = cr.query(uri, columns, null, null,
 				Media.DATE_MODIFIED+" desc");
 		if (cur.moveToFirst()) {
 			// 获取指定列的索引
@@ -188,14 +185,35 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 					PhotoUpImageItem imageItem = new PhotoUpImageItem();
 					imageItem.setImageId(_id);
 					imageItem.setImagePath(path);
+
 //					imageItem.setThumbnailPath(thumbnailList.get(_id));
 					bucket.imageList.add(imageItem);
-					Log.i(TAG, "PhotoUpAlbumHelper类中 的——》path="+thumbnailList.get(_id));
 				}
 			} while (cur.moveToNext());
 		}
 		cur.close();
-		hasBuildImagesBucketList = true;
+	}
+
+	public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
+		// Raw height and width of image
+		final int height = options.outHeight;
+		final int width = options.outWidth;
+		int inSampleSize = 1;
+
+		if (height > reqHeight || width > reqWidth) {
+
+			final int halfHeight = height / 2;
+			final int halfWidth = width / 2;
+
+			// Calculate the largest inSampleSize value that is a power of 2 and keeps both
+			// height and width larger than the requested height and width.
+			while ((halfHeight / inSampleSize) > reqHeight
+					&& (halfWidth / inSampleSize) > reqWidth) {
+				inSampleSize *= 2;
+			}
+		}
+
+		return inSampleSize;
 	}
 
 	/**
@@ -205,7 +223,8 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 	 */
 	public List<PhotoUpImageBucket> getImagesBucketList(boolean refresh) {
 		if (refresh || (!refresh && !hasBuildImagesBucketList)) {
-			buildImagesBucketList();
+			buildImagesBucketList(Media.EXTERNAL_CONTENT_URI);
+			buildImagesBucketList(Media.INTERNAL_CONTENT_URI);
 		}
 		List<PhotoUpImageBucket> tmpList = new ArrayList<PhotoUpImageBucket>();
 		Iterator<Entry<String, PhotoUpImageBucket>> itr = bucketList.entrySet().iterator();
@@ -280,7 +299,6 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 
 
 	public String getPhotoLocation(String imagePath) {
-		Log.i("TAG", "getPhotoLocation==" + imagePath);
 		float output1 = 0;
 		float output2 = 0;
 

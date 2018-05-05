@@ -7,18 +7,33 @@
     <RelativeLayout 
         android:id="@+id/title"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:background="#ff78ccf2">
+        android:layout_height="47dp"
+        android:background="@color/colorPrimary">
+
+        <ImageView
+            android:id="@+id/image_item_return"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:padding="10dp"
+            android:layout_centerVertical="true"
+            android:scaleType="centerInside"
+            android:layout_marginLeft="10dp"
+            android:src="@drawable/icon_back"
+            />
+
         <TextView 
             android:id="@+id/back"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
-            android:layout_alignParentLeft="true"
             android:layout_marginLeft="10dp"
             android:textColor="#ffffff"
             android:textSize="14sp"
-            android:text="@android:string/cancel"/>
+            android:text="图片列表"
+            android:layout_centerHorizontal="true"
+            android:gravity="center_horizontal"
+            android:layout_centerInParent="true"
+            />
         <TextView 
             android:id="@+id/sure"
             android:layout_width="wrap_content"
@@ -28,7 +43,9 @@
             android:layout_marginRight="10dp"
             android:textColor="#ffffff"
             android:textSize="14sp"
-            android:text="@android:string/yes"/>
+            android:text="@android:string/yes"
+            android:visibility="gone"
+            />
     </RelativeLayout>
     <GridView
         android:id="@+id/album_item_gridv"

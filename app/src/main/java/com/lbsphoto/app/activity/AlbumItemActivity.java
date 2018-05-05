@@ -4,13 +4,10 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.View.OnClickListener;
-import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.CheckBox;
 import android.widget.GridView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.adapter.AlbumItemAdapter;
@@ -19,7 +16,7 @@ import com.lbsphoto.app.bean.PhotoUpImageItem;
 
 import java.util.ArrayList;
 
-public class AlbumItemActivity extends BaseActivity implements OnClickListener{
+public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 
 	private GridView gridView;
 	private TextView back,ok;
@@ -27,9 +24,8 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener{
 	private ArrayList<PhotoUpImageItem> selectImages;
 	private AlbumItemAdapter adapter;
 	@Override
-	protected void onCreate(Bundle savedInstanceState) {
+	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(R.layout.album_item_images);
 		init();
 		setListener();
@@ -41,7 +37,7 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener{
 		selectImages = new ArrayList<PhotoUpImageItem>();
 		
 		Intent intent = getIntent();
-		photoUpImageBucket = (PhotoUpImageBucket) intent.getSerializableExtra("imagelist");
+		photoUpImageBucket = (PhotoUpImageBucket) intent.getParcelableExtra("imagelist");
 		adapter = new AlbumItemAdapter(photoUpImageBucket.getImageList(), AlbumItemActivity.this);
 		gridView.setAdapter(adapter);
 	}
@@ -52,37 +48,20 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener{
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
-				
-				CheckBox checkBox = (CheckBox) view.findViewById(R.id.check);
-				photoUpImageBucket.getImageList().get(position).setSelected(
-						!checkBox.isChecked());
-				adapter.notifyDataSetChanged();
-				
-				Toast.makeText(AlbumItemActivity.this, "postion="+position, 
-						Toast.LENGTH_SHORT).show();
-//				photoUpImageBucket.getImageList().get(position).setSelected(
-//						!photoUpImageBucket.getImageList().get(position).isSelected());
-//				adapter.notifyDataSetChanged();
-				if (photoUpImageBucket.getImageList().get(position).isSelected()) {
-					if (selectImages.contains(photoUpImageBucket.getImageList().get(position))) {
-						
-					}else {
-						selectImages.add(photoUpImageBucket.getImageList().get(position));
-					}
-				}else {
-					if (selectImages.contains(photoUpImageBucket.getImageList().get(position))) {
-						selectImages.remove(photoUpImageBucket.getImageList().get(position));
-					}else {
-						
-					}
-				}
+				Intent intent = new Intent(AlbumItemActivity.this, ImageInfoActivity.class);
+				intent.putExtra("path", photoUpImageBucket.getImageList().get(position).getImagePath());
+				startActivity(intent);
+			}
+		});
+
+		findViewById(R.id.image_item_return).setOnClickListener(new OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				finish();
 			}
 		});
 	}
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-	}
+
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
