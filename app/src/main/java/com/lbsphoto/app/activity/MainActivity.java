@@ -7,8 +7,11 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
+import android.support.v4.content.FileProvider;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
@@ -18,6 +21,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.model.LatLng;
@@ -27,9 +31,11 @@ import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
 import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
 import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
 import com.lbsphoto.app.R;
+import com.lbsphoto.app.application.LbsPhotoApplication;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -42,6 +48,7 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     private ImageView settingIm;
     private ImageView cameraIm;
     private MapView mapView;
+    private File cameraFile;
 
     private static final int RESULT_CAPTURE_CODE = 100;
     private static final int RESULT_IMAGE_CODE = 200;
@@ -59,6 +66,8 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         mapView = findViewById(R.id.map_view);
 
         albumIm.setOnClickListener(this);
+        settingIm.setOnClickListener(this);
+        cameraIm.setOnClickListener(this);
     }
 
     @Override
@@ -72,17 +81,70 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
                 break;
 
             case R.id.camera_logo:
+                selectPhoto(RESULT_CAPTURE_CODE);
                 break;
             default:
                 break;
         }
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
+            Log.i(TAG, "RESULT_CAPTURE_CODE" + cameraFile.getAbsolutePath());
+            regeoLatlng(cameraFile.getAbsolutePath(), RESULT_CAPTURE_CODE);
+        }
+        if (requestCode == RESULT_IMAGE_CODE && resultCode == RESULT_OK) {
+            Uri uri = data.getData();
+            Log.i(TAG, "RESULT_IMAGE_CODE" + uriToRealPath(uri));
+            regeoLatlng(uriToRealPath(uri), RESULT_IMAGE_CODE);
+        }
+    }
+
+    @Override
+    public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
+
+    }
+
+    @Override
+    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
+        Log.i("TAG", "reverseGeoCodeResult==" + reverseGeoCodeResult);
+        if (!TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
+            Toast.makeText(LbsPhotoApplication.getAppContext(), reverseGeoCodeResult.getAddress(), Toast.LENGTH_SHORT).show();
+            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getAddress());
+        } else {
+            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (geoCoder != null) {
+            geoCoder.destroy();
+        }
+
+        mapView.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        mapView.onResume();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mapView.onPause();
+    }
+
     private void selectPhoto(int type) {
         String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss")
                 .format(new Date());
-        mImagePath = "/sdcard/" + timeStamp + ".jpg";
-        final File tmpCameraFile = new File(mImagePath);
+        mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath();
+        final File tmpCameraFile = new File(mImagePath, timeStamp + ".jpg");
         if (type == RESULT_IMAGE_CODE) {
             startActivityForResult(
                     new Intent(Intent.ACTION_PICK).setType(
@@ -91,29 +153,22 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
                             Uri.fromFile(tmpCameraFile)),
                     RESULT_IMAGE_CODE);
         } else if (type == RESULT_CAPTURE_CODE) {
-            startActivityForResult(new Intent(
-                            MediaStore.ACTION_IMAGE_CAPTURE).putExtra(
-                            MediaStore.EXTRA_OUTPUT,
-                            Uri.fromFile(tmpCameraFile)),
-                    RESULT_CAPTURE_CODE);
+            Intent intent = new Intent(
+                    MediaStore.ACTION_IMAGE_CAPTURE);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                Uri cameraUri = FileProvider.getUriForFile(MainActivity.this,
+                        "com.lbsphoto.app.fileprovider", tmpCameraFile);
+                cameraFile = tmpCameraFile;
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+            } else {
+                Uri cameraUri = Uri.fromFile(tmpCameraFile);
+                cameraFile = tmpCameraFile;
+                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+            }
+            startActivityForResult(intent, RESULT_CAPTURE_CODE);
         }
     }
 
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
-            Log.i(TAG, "RESULT_CAPTURE_CODE" + mImagePath);
-            regeoLatlng(mImagePath, RESULT_CAPTURE_CODE);
-        }
-        if (requestCode == RESULT_IMAGE_CODE && resultCode == RESULT_OK) {
-            Uri uri = data.getData();
-            Log.i(TAG, "RESULT_IMAGE_CODE" + uriToRealPath(uri));
-            regeoLatlng(uriToRealPath(uri), RESULT_IMAGE_CODE);
-        }
-
-    }
     private String uriToRealPath(Uri uri) {
         Cursor cursor = managedQuery(uri,
                 new String[]{MediaStore.Images.Media.DATA},
@@ -137,8 +192,7 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         LatLng latLng = new LatLng(lat, lon);
         // 如果经纬度为空并且是来源于拍照的话，那么就调用定位方法，此处逻辑还需要优化
         if (lat == 0 && lon == 0 && type == RESULT_CAPTURE_CODE) {
-//            startLocation();
-//            latLng = new LatLng(currentLat, currentLon);
+            Log.i(TAG, "lat lon is empty.");
         }
 
         geoCoder = GeoCoder.newInstance();
@@ -210,6 +264,9 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
      * @param str string
      */
     private void setDiffColor(TextView textView,String str){
+        if (textView == null) {
+            return;
+        }
         SpannableString sp = new SpannableString(str);
         sp.setSpan(new ForegroundColorSpan(Color.RED),str.indexOf("：")+1,str.length(), Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
         textView.setText(sp);
@@ -217,26 +274,5 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
 
     }
 
-    @Override
-    public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
 
-    }
-
-    @Override
-    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
-        Log.i("TAG", "reverseGeoCodeResult==" + reverseGeoCodeResult);
-        if (!TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
-            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getAddress());
-        } else {
-            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (geoCoder != null) {
-            geoCoder.destroy();
-        }
-    }
 }
