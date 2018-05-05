@@ -53,7 +53,14 @@
         </activity>
         <activity android:name=".activity.MainActivity"
                   android:screenOrientation="portrait"/>
-
+        <activity android:name=".activity.AlbumsActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activity.AlbumItemActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activity.SelectedImagesActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activity.GridImageActivity"
+            android:screenOrientation="portrait"/>
         <meta-data
             android:name="com.baidu.lbsapi.API_KEY"
             android:value="6llpKbZm9ZvbaSUiD79nTXOTC03RlWUe" />

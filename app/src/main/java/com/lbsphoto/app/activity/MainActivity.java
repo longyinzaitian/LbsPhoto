@@ -33,24 +33,22 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * 参考博文 2
- * http://www.cnblogs.com/plokmju/p/android_exif.html
- * http://blog.5ibc.net/p/5493.html
+ * @author pc
  */
 public class MainActivity extends BaseActivity implements OnGetGeoCoderResultListener {
-
+    private static final String TAG = MainActivity.class.getSimpleName();
     private TextView albumTV;
     private TextView cameraTV;
     private TextView phoneTV;
     private TextView latlngTV;
     private TextView locationTV;
     private ImageView resultIV;
+    private TextView albumOpen;
 
     private static final int RESULT_CAPTURE_CODE = 100;
     private static final int RESULT_IMAGE_CODE = 200;
 
     private String mImagePath;
-    private String TAG = MainActivity.class.getSimpleName();
     private GeoCoder geoCoder;
 
     @Override
@@ -64,6 +62,7 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         latlngTV = (TextView) findViewById(R.id.photo_latlng_tv);
         locationTV = (TextView) findViewById(R.id.photo_location_tv);
         resultIV = (ImageView) findViewById(R.id.photo_result_iv);
+        albumOpen = findViewById(R.id.album_open);
 
         albumTV.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -75,6 +74,13 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
             @Override
             public void onClick(View v) {
                 selectPhoto(RESULT_CAPTURE_CODE);
+            }
+        });
+
+        albumOpen.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, AlbumsActivity.class));
             }
         });
     }
@@ -162,9 +168,12 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
 
         try {
             ExifInterface exifInterface = new ExifInterface(imagePath);
-            String datetime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME);// 拍摄时间
-            String deviceName = exifInterface.getAttribute(ExifInterface.TAG_MAKE);// 设备品牌
-            String deviceModel = exifInterface.getAttribute(ExifInterface.TAG_MODEL); // 设备型号
+            // 拍摄时间
+            String datetime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME);
+            // 设备品牌
+            String deviceName = exifInterface.getAttribute(ExifInterface.TAG_MAKE);
+            // 设备型号
+            String deviceModel = exifInterface.getAttribute(ExifInterface.TAG_MODEL);
             String latValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
             String lngValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
             String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
@@ -176,9 +185,7 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
             }
             setDiffColor(phoneTV, "手机型号：" + deviceName + "," + deviceModel);
             setDiffColor(latlngTV, "经纬度：" + output1 + ";" + output2);
-        } catch (IllegalArgumentException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (IllegalArgumentException|IOException e) {
             e.printStackTrace();
         }
         return output1 + "-" + output2;
@@ -186,8 +193,8 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
 
     /**
      * TextView分段设置颜色等样式
-     * @param textView
-     * @param str
+     * @param textView text
+     * @param str string
      */
     private void setDiffColor(TextView textView,String str){
         SpannableString sp = new SpannableString(str);
@@ -230,7 +237,7 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     @Override
     public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
         Log.i("TAG", "reverseGeoCodeResult==" + reverseGeoCodeResult);
-        if (TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
+        if (!TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
             setDiffColor(locationTV, "地理位置：" + reverseGeoCodeResult.getAddress());
         } else {
             setDiffColor(locationTV, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());

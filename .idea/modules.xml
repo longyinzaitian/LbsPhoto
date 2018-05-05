@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/LbsPhoto.iml" filepath="$PROJECT_DIR$/LbsPhoto.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/xmPhoto-master.iml" filepath="$PROJECT_DIR$/xmPhoto-master.iml" />
     </modules>
   </component>
 </project>

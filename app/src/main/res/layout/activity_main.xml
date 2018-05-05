@@ -48,6 +48,17 @@
         android:textColor="@android:color/white"/>
 
     <TextView
+        android:id="@+id/album_open"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginTop="5dp"
+        android:background="@android:color/holo_blue_light"
+        android:padding="10dp"
+        android:text="打开相册"
+        android:textColor="@android:color/white"/>
+
+    <TextView
         android:layout_width="100dp"
         android:layout_height="wrap_content"
         android:layout_marginLeft="5dp"
