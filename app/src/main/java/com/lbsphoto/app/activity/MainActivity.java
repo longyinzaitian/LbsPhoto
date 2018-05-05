@@ -3,7 +3,6 @@ package com.lbsphoto.app.activity;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Build;
@@ -11,16 +10,9 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
-import android.text.Spannable;
-import android.text.SpannableString;
-import android.text.TextUtils;
-import android.text.method.LinkMovementMethod;
-import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
@@ -37,18 +29,15 @@ import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
-import com.baidu.mapapi.search.geocode.GeoCodeResult;
-import com.baidu.mapapi.search.geocode.GeoCoder;
-import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
-import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
 import com.baidu.mapapi.utils.CoordinateConverter;
 import com.lbsphoto.app.R;
-import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
+import com.lbsphoto.app.util.LogUtils;
 import com.lbsphoto.app.util.PhotoUpAlbumHelper;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -57,19 +46,18 @@ import java.util.List;
 /**
  * @author pc
  */
-public class MainActivity extends BaseActivity implements OnGetGeoCoderResultListener, View.OnClickListener {
+public class MainActivity extends BaseActivity implements View.OnClickListener {
     private static final String TAG = MainActivity.class.getSimpleName();
+    private static final int RESULT_CAPTURE_CODE = 100;
+
     private ImageView albumIm;
     private ImageView settingIm;
     private ImageView cameraIm;
     private MapView mapView;
     private File cameraFile;
 
-    private static final int RESULT_CAPTURE_CODE = 100;
-    private static final int RESULT_IMAGE_CODE = 200;
-
+    private long mLastClickTime;
     private String mImagePath;
-    private GeoCoder geoCoder;
 
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
@@ -110,13 +98,19 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
                                     continue;
                                 }
 
-                                BitmapFactory.Options options = new BitmapFactory.Options();
+                                final BitmapFactory.Options options = new BitmapFactory.Options();
                                 options.inJustDecodeBounds = true;
                                 BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
                                 options.inSampleSize = calculateInSampleSize(options, 50, 50);
                                 options.inJustDecodeBounds = false;
-                                regeoLatlng(photoUpImageItem.getImagePath(), RESULT_CAPTURE_CODE,
-                                        BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options));
+                                final Bitmap bitmap = BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
+                                mapView.post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        reGeoLatLng(photoUpImageItem.getImagePath(), bitmap);
+
+                                    }
+                                });
                             }
                         }
                     }
@@ -181,19 +175,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     class MyLocationListener extends BDAbstractLocationListener {
         @Override
         public void onReceiveLocation(BDLocation location) {
-            //获取纬度信息
-            double latitude = location.getLatitude();
-            //获取经度信息
-            double longitude = location.getLongitude();
-            //获取定位精度，默认值为0.0f
-            float radius = location.getRadius();
-
-            String coorType = location.getCoorType();
-            //获取经纬度坐标类型，以LocationClientOption中设置过的坐标类型为准
-
-            int errorCode = location.getLocType();
-            mLocationClient.stop();
-
             MyLocationData locData = new MyLocationData.Builder()
                     //定位精度
                     .accuracy(location.getRadius())
@@ -208,19 +189,15 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
 
             LatLng latLng = new LatLng(location.getLatitude(),
                     location.getLongitude());
-            CoordinateConverter coordinateConverter = new CoordinateConverter().coord(latLng);
-
             //定义地图状态
             //MapStatus.Builder地图状态构造器
             MapStatus.Builder builder = new MapStatus.Builder();
             //设置地图中心点,为我们的位置
-            builder.target(coordinateConverter.convert())
+            builder.target(latLng)
                     //设置地图缩放级别
-                    .zoom(13.0f);
+                    .zoom(16.0f);
             //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
-            // MapStatusUpdateFactory.newMapStatus设置地图新状态
             mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
-
         }
     }
 
@@ -246,42 +223,32 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
-            Log.i(TAG, "RESULT_CAPTURE_CODE" + cameraFile.getAbsolutePath());
             BitmapFactory.Options options = new BitmapFactory.Options();
             options.inJustDecodeBounds = true;
             BitmapFactory.decodeFile(cameraFile.getAbsolutePath(), options);
             options.inSampleSize = calculateInSampleSize(options, 50, 50);
             options.inJustDecodeBounds = false;
             Bitmap bm = BitmapFactory.decodeFile(cameraFile.getAbsolutePath(), options);
+            LogUtils.i(TAG, "camera file:" + cameraFile.getAbsolutePath());
+            reGeoLatLng(cameraFile.getAbsolutePath(), bm);
 
-            regeoLatlng(cameraFile.getAbsolutePath(), RESULT_CAPTURE_CODE, bm);
-        }
-    }
+            try {
+                String insert = MediaStore.Images.Media.insertImage(getContentResolver(),
+                        cameraFile.getAbsolutePath(), cameraFile.getName(), "lbs photo image");
+                LogUtils.i(TAG, "insert:" + insert + ", file name:" + cameraFile.getName());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(cameraFile)));
 
-    @Override
-    public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
-
-    }
-
-    @Override
-    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
-        Log.i("TAG", "reverseGeoCodeResult==" + reverseGeoCodeResult);
-        if (!TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
-            Toast.makeText(LbsPhotoApplication.getAppContext(), reverseGeoCodeResult.getAddress(), Toast.LENGTH_SHORT).show();
-            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getAddress());
-        } else {
-            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());
         }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (geoCoder != null) {
-            geoCoder.destroy();
-        }
-
         mapView.onDestroy();
+        mLocationClient.stop();
     }
 
     @Override
@@ -299,14 +266,18 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     private void selectPhoto(int type) {
         String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss")
                 .format(new Date());
-        mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/lbsphoto";
+        mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator+ "lbsphoto";
         final File tmpCameraFile = new File(mImagePath, timeStamp + ".jpg");
+        if (!tmpCameraFile.getParentFile().exists()) {
+            tmpCameraFile.getParentFile().mkdir();
+        }
         if (type == RESULT_CAPTURE_CODE) {
             Intent intent = new Intent(
                     MediaStore.ACTION_IMAGE_CAPTURE);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 Uri cameraUri = FileProvider.getUriForFile(MainActivity.this,
                         "com.lbsphoto.app.fileprovider", tmpCameraFile);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 cameraFile = tmpCameraFile;
                 intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
             } else {
@@ -318,48 +289,42 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         }
     }
 
-    private void regeoLatlng(final String path, int type, final Bitmap bitmap) {
+    private void reGeoLatLng(final String path, final Bitmap bitmap) {
         String latLngStr = getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
         double lon = Double.parseDouble(latLngStr.split("-")[1]);
         final LatLng latLng = new LatLng(lat, lon);
-        // 如果经纬度为空并且是来源于拍照的话，那么就调用定位方法，此处逻辑还需要优化
-        if (lat == 0 && lon == 0 && type == RESULT_CAPTURE_CODE) {
-            Log.i(TAG, "lat lon is empty.");
-        }
 
-//        geoCoder = GeoCoder.newInstance();
-//        geoCoder.setOnGetGeoCodeResultListener(this);
-//        ReverseGeoCodeOption reverseGeoCodeOption = new ReverseGeoCodeOption();
-//        reverseGeoCodeOption.location(latLng);
-//        geoCoder.reverseGeoCode(reverseGeoCodeOption);
-
-        runOnUiThread(new Runnable() {
+        Bundle bundle = new Bundle();
+        bundle.putString("path", path);
+        BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+        CoordinateConverter coordinateConverter = new CoordinateConverter().coord(latLng);
+        OverlayOptions overlayOptions = new MarkerOptions()
+                .position(coordinateConverter.convert())
+                .icon(bitmapDescriptor)
+                .extraInfo(bundle);
+        mapView.getMap().addOverlay(overlayOptions);
+        mapView.getMap().setOnMarkerClickListener(new BaiduMap.OnMarkerClickListener() {
             @Override
-            public void run() {
-                Bundle bundle = new Bundle();
-                bundle.putString("path", path);
-                BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
-                CoordinateConverter coordinateConverter = new CoordinateConverter().coord(latLng);
-                OverlayOptions overlayOptions = new MarkerOptions()
-                        .position(coordinateConverter.convert())
-                        .icon(bitmapDescriptor)
-                        .extraInfo(bundle);
-                mapView.getMap().addOverlay(overlayOptions);
-                mapView.getMap().setOnMarkerClickListener(new BaiduMap.OnMarkerClickListener() {
-                    @Override
-                    public boolean onMarkerClick(Marker marker) {
-                        Bundle markBundle = marker.getExtraInfo();
-                        Log.i(TAG, "marker:" + markBundle.getString("path"));
-                        return true;
-                    }
-                });
+            public boolean onMarkerClick(Marker marker) {
+                long curTime = System.currentTimeMillis();
+                if (curTime - mLastClickTime <= 1000) {
+                    return false;
+                }
+                mLastClickTime = curTime;
+
+                Bundle markBundle = marker.getExtraInfo();
+                Log.i(TAG, "marker:" + markBundle.getString("path"));
+                Intent intent = new Intent(MainActivity.this, ImageInfoActivity.class);
+                intent.putExtra("path", markBundle.getString("path"));
+                startActivity(intent);
+                return false;
             }
         });
+
     }
 
-    public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        // Raw height and width of image
+    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
         final int height = options.outHeight;
         final int width = options.outWidth;
         int inSampleSize = 1;
@@ -372,7 +337,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
                 inSampleSize *= 2;
             }
         }
-
         return inSampleSize;
     }
 
@@ -384,11 +348,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         try {
             ExifInterface exifInterface = new ExifInterface(imagePath);
             // 拍摄时间
-            String datetime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME);
-            // 设备品牌
-            String deviceName = exifInterface.getAttribute(ExifInterface.TAG_MAKE);
-            // 设备型号
-            String deviceModel = exifInterface.getAttribute(ExifInterface.TAG_MODEL);
             String latValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
             String lngValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
             String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
@@ -397,8 +356,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
                 output1 = convertRationalLatLonToFloat(latValue, latRef);
                 output2 = convertRationalLatLonToFloat(lngValue, lngRef);
             }
-            setDiffColor(null, "手机型号：" + deviceName + "," + deviceModel);
-            setDiffColor(null, "经纬度：" + output1 + ";" + output2);
         } catch (IllegalArgumentException|IOException e) {
 
         }
@@ -428,21 +385,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
             return (float) -result;
         }
         return (float) result;
-    }
-
-    /**
-     * TextView分段设置颜色等样式
-     * @param textView text
-     * @param str string
-     */
-    private void setDiffColor(TextView textView,String str){
-        if (textView == null) {
-            return;
-        }
-        SpannableString sp = new SpannableString(str);
-        sp.setSpan(new ForegroundColorSpan(Color.RED),str.indexOf("：")+1,str.length(), Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
-        textView.setText(sp);
-        textView.setMovementMethod(LinkMovementMethod.getInstance());
     }
 
 }

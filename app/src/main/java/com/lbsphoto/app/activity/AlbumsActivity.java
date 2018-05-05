@@ -15,6 +15,9 @@ import com.lbsphoto.app.util.PhotoUpAlbumHelper;
 
 import java.util.List;
 
+/**
+ * @author lbsphoto
+ */
 public class AlbumsActivity extends BaseActivity {
 
 	private GridView gridView;
@@ -30,13 +33,13 @@ public class AlbumsActivity extends BaseActivity {
 		loadData();
 		onItemClick();
 	}
-	private void init(){
+	private void init() {
 		gridView = (GridView) findViewById(R.id.album_gridv);
 		adapter = new AlbumsAdapter(AlbumsActivity.this);
 		gridView.setAdapter(adapter);
 	}
 	
-	private void loadData(){
+	private void loadData() {
 		photoUpAlbumHelper = PhotoUpAlbumHelper.getHelper();
 		photoUpAlbumHelper.init(AlbumsActivity.this);
 		photoUpAlbumHelper.setGetAlbumList(new PhotoUpAlbumHelper.GetAlbumList() {
@@ -50,7 +53,7 @@ public class AlbumsActivity extends BaseActivity {
 		photoUpAlbumHelper.execute(false);
 	}
 	
-	private void onItemClick(){
+	private void onItemClick() {
 		gridView.setOnItemClickListener(new OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view,
@@ -67,9 +70,5 @@ public class AlbumsActivity extends BaseActivity {
 				finish();
 			}
 		});
-	}
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
 	}
 }

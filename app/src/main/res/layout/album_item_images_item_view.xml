@@ -17,6 +17,8 @@
         android:layout_alignParentTop="true"
         android:layout_alignParentRight="true"
         android:clickable="false"
-        android:focusable="false"/>
+        android:focusable="false"
+        android:visibility="gone"
+        />
 
 </RelativeLayout>

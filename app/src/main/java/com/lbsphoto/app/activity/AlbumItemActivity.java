@@ -16,6 +16,9 @@ import com.lbsphoto.app.bean.PhotoUpImageItem;
 
 import java.util.ArrayList;
 
+/**
+ * @author lbsphoto
+ */
 public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 
 	private GridView gridView;
@@ -30,7 +33,7 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 		init();
 		setListener();
 	}
-	private void init(){
+	private void init() {
 		gridView = (GridView) findViewById(R.id.album_item_gridv);
 		back = (TextView) findViewById(R.id.back);
 		ok = (TextView) findViewById(R.id.sure);
@@ -41,7 +44,7 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 		adapter = new AlbumItemAdapter(photoUpImageBucket.getImageList(), AlbumItemActivity.this);
 		gridView.setAdapter(adapter);
 	}
-	private void setListener(){
+	private void setListener() {
 		back.setOnClickListener(this);
 		ok.setOnClickListener(this);
 		gridView.setOnItemClickListener(new OnItemClickListener() {

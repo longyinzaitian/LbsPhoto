@@ -34,6 +34,7 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
     private TextView locationTx;
     private TextView addressTx;
     private TextView phoneInfoTx;
+    private TextView timeTx;
 
     private GeoCoder geoCoder;
 
@@ -48,13 +49,14 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
         locationTx = findViewById(R.id.image_item_location);
         addressTx = findViewById(R.id.image_item_address);
         phoneInfoTx = findViewById(R.id.image_item_phone_info);
+        timeTx = findViewById(R.id.image_item_time);
 
         Glide.with(LbsPhotoApplication.getAppContext())
                 .load("file://" + path)
                 .into(srcIm);
         setDiffColor(pathTx, "路径：" + path);
 
-        regeoLatlng(path);
+        reGeoLatLng(path);
 
         findViewById(R.id.image_item_return).setOnClickListener(new View.OnClickListener() {
             @Override
@@ -69,7 +71,7 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
         super.onDestroy();
     }
 
-    private void regeoLatlng(final String path) {
+    private void reGeoLatLng(final String path) {
         String latLngStr = getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
         double lon = Double.parseDouble(latLngStr.split("-")[1]);
@@ -119,6 +121,8 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
             }
             setDiffColor(phoneInfoTx, "手机型号：" + deviceName + "," + deviceModel);
             setDiffColor(locationTx, "经纬度：" + output1 + ";" + output2);
+
+            setDiffColor(timeTx, "拍摄时间：" + datetime);
         } catch (IllegalArgumentException|IOException e) {
 
         }
@@ -155,7 +159,7 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
      * @param textView text
      * @param str string
      */
-    private void setDiffColor(TextView textView,String str){
+    private void setDiffColor(TextView textView,String str) {
         if (textView == null) {
             return;
         }
