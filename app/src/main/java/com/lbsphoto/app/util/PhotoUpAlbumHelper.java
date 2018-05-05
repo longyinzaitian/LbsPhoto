@@ -1,5 +1,6 @@
 package com.lbsphoto.app.util;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -10,12 +11,18 @@ import java.util.Map.Entry;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.media.ExifInterface;
 import android.os.AsyncTask;
 import android.provider.MediaStore.Audio.Albums;
 import android.provider.MediaStore.Images.Media;
 import android.provider.MediaStore.Images.Thumbnails;
 import android.util.Log;
 
+import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.search.geocode.GeoCoder;
+import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
 
@@ -165,6 +172,9 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 				}else {
 					String _id = cur.getString(photoIDIndex);
 					String path = cur.getString(photoPathIndex);
+					if (!regeoLatlng(path)) {
+						continue;
+					}
 					String bucketName = cur.getString(bucketDisplayNameIndex);
 					String bucketId = cur.getString(bucketIdIndex);
 					PhotoUpImageBucket bucket = bucketList.get(bucketId);
@@ -252,5 +262,72 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 		super.onPostExecute(result);
 		getAlbumList.getAlbumList((List<PhotoUpImageBucket>)result);
 	}
-	
+
+
+	private boolean regeoLatlng(String path) {
+		String latLngStr = getPhotoLocation(path);
+		double lat = Double.parseDouble(latLngStr.split("-")[0]);
+		double lon = Double.parseDouble(latLngStr.split("-")[1]);
+		LatLng latLng = new LatLng(lat, lon);
+		// 如果经纬度为空并且是来源于拍照的话，那么就调用定位方法，此处逻辑还需要优化
+		if (lat == 0 && lon == 0) {
+			return false;
+		}
+
+		return true;
+	}
+
+
+
+	public String getPhotoLocation(String imagePath) {
+		Log.i("TAG", "getPhotoLocation==" + imagePath);
+		float output1 = 0;
+		float output2 = 0;
+
+		try {
+			ExifInterface exifInterface = new ExifInterface(imagePath);
+			// 拍摄时间
+			String datetime = exifInterface.getAttribute(ExifInterface.TAG_DATETIME);
+			// 设备品牌
+			String deviceName = exifInterface.getAttribute(ExifInterface.TAG_MAKE);
+			// 设备型号
+			String deviceModel = exifInterface.getAttribute(ExifInterface.TAG_MODEL);
+			String latValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
+			String lngValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
+			String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
+			String lngRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF);
+			if (latValue != null && latRef != null && lngValue != null && lngRef != null) {
+				output1 = convertRationalLatLonToFloat(latValue, latRef);
+				output2 = convertRationalLatLonToFloat(lngValue, lngRef);
+			}
+		} catch (IllegalArgumentException|IOException e) {
+			e.printStackTrace();
+		}
+		return output1 + "-" + output2;
+	}
+
+	private static float convertRationalLatLonToFloat(
+			String rationalString, String ref) {
+
+		String[] parts = rationalString.split(",");
+
+		String[] pair;
+		pair = parts[0].split("/");
+		double degrees = Double.parseDouble(pair[0].trim())
+				/ Double.parseDouble(pair[1].trim());
+
+		pair = parts[1].split("/");
+		double minutes = Double.parseDouble(pair[0].trim())
+				/ Double.parseDouble(pair[1].trim());
+
+		pair = parts[2].split("/");
+		double seconds = Double.parseDouble(pair[0].trim())
+				/ Double.parseDouble(pair[1].trim());
+
+		double result = degrees + (minutes / 60.0) + (seconds / 3600.0);
+		if ((ref.equals("S") || ref.equals("W"))) {
+			return (float) -result;
+		}
+		return (float) result;
+	}
 }

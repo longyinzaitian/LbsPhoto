@@ -19,6 +19,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.baidu.mapapi.map.MapView;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.search.geocode.GeoCodeResult;
 import com.baidu.mapapi.search.geocode.GeoCoder;
@@ -35,15 +36,12 @@ import java.util.Date;
 /**
  * @author pc
  */
-public class MainActivity extends BaseActivity implements OnGetGeoCoderResultListener {
+public class MainActivity extends BaseActivity implements OnGetGeoCoderResultListener, View.OnClickListener {
     private static final String TAG = MainActivity.class.getSimpleName();
-    private TextView albumTV;
-    private TextView cameraTV;
-    private TextView phoneTV;
-    private TextView latlngTV;
-    private TextView locationTV;
-    private ImageView resultIV;
-    private TextView albumOpen;
+    private ImageView albumIm;
+    private ImageView settingIm;
+    private ImageView cameraIm;
+    private MapView mapView;
 
     private static final int RESULT_CAPTURE_CODE = 100;
     private static final int RESULT_IMAGE_CODE = 200;
@@ -55,34 +53,29 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        albumIm = findViewById(R.id.album_logo);
+        settingIm = findViewById(R.id.setting_logo);
+        cameraIm = findViewById(R.id.camera_logo);
+        mapView = findViewById(R.id.map_view);
 
-        albumTV = (TextView) findViewById(R.id.photo_album_tv);
-        cameraTV = (TextView) findViewById(R.id.photo_camera_tv);
-        phoneTV = (TextView) findViewById(R.id.photo_phone_tv);
-        latlngTV = (TextView) findViewById(R.id.photo_latlng_tv);
-        locationTV = (TextView) findViewById(R.id.photo_location_tv);
-        resultIV = (ImageView) findViewById(R.id.photo_result_iv);
-        albumOpen = findViewById(R.id.album_open);
+        albumIm.setOnClickListener(this);
+    }
 
-        albumTV.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectPhoto(RESULT_IMAGE_CODE);
-            }
-        });
-        cameraTV.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectPhoto(RESULT_CAPTURE_CODE);
-            }
-        });
-
-        albumOpen.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.album_logo:
                 startActivity(new Intent(MainActivity.this, AlbumsActivity.class));
-            }
-        });
+                break;
+
+            case R.id.setting_logo:
+                break;
+
+            case R.id.camera_logo:
+                break;
+            default:
+                break;
+        }
     }
 
     private void selectPhoto(int type) {
@@ -137,10 +130,6 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inSampleSize = 2;
         Bitmap bm = BitmapFactory.decodeFile(path, options);
-        resultIV.setImageBitmap(bm);
-        locationTV.setText("");
-        phoneTV.setText("");
-        latlngTV.setText("");
 
         String latLngStr = getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
@@ -177,31 +166,17 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
             String latValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
             String lngValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
             String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
-            String lngRef = exifInterface.getAttribute
-                    (ExifInterface.TAG_GPS_LONGITUDE_REF);
+            String lngRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF);
             if (latValue != null && latRef != null && lngValue != null && lngRef != null) {
                 output1 = convertRationalLatLonToFloat(latValue, latRef);
                 output2 = convertRationalLatLonToFloat(lngValue, lngRef);
             }
-            setDiffColor(phoneTV, "手机型号：" + deviceName + "," + deviceModel);
-            setDiffColor(latlngTV, "经纬度：" + output1 + ";" + output2);
+            setDiffColor(null, "手机型号：" + deviceName + "," + deviceModel);
+            setDiffColor(null, "经纬度：" + output1 + ";" + output2);
         } catch (IllegalArgumentException|IOException e) {
             e.printStackTrace();
         }
         return output1 + "-" + output2;
-    }
-
-    /**
-     * TextView分段设置颜色等样式
-     * @param textView text
-     * @param str string
-     */
-    private void setDiffColor(TextView textView,String str){
-        SpannableString sp = new SpannableString(str);
-        sp.setSpan(new ForegroundColorSpan(Color.RED),str.indexOf("：")+1,str.length(), Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
-        textView.setText(sp);
-        textView.setMovementMethod(LinkMovementMethod.getInstance());
-
     }
 
     private static float convertRationalLatLonToFloat(
@@ -229,6 +204,19 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
         return (float) result;
     }
 
+    /**
+     * TextView分段设置颜色等样式
+     * @param textView text
+     * @param str string
+     */
+    private void setDiffColor(TextView textView,String str){
+        SpannableString sp = new SpannableString(str);
+        sp.setSpan(new ForegroundColorSpan(Color.RED),str.indexOf("：")+1,str.length(), Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
+        textView.setText(sp);
+        textView.setMovementMethod(LinkMovementMethod.getInstance());
+
+    }
+
     @Override
     public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
 
@@ -238,9 +226,9 @@ public class MainActivity extends BaseActivity implements OnGetGeoCoderResultLis
     public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
         Log.i("TAG", "reverseGeoCodeResult==" + reverseGeoCodeResult);
         if (!TextUtils.isEmpty(reverseGeoCodeResult.getAddress())) {
-            setDiffColor(locationTV, "地理位置：" + reverseGeoCodeResult.getAddress());
+            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getAddress());
         } else {
-            setDiffColor(locationTV, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());
+            setDiffColor(null, "地理位置：" + reverseGeoCodeResult.getBusinessCircle());
         }
     }
 
