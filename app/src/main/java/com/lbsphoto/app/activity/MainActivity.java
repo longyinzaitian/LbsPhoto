@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,6 +32,7 @@ import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.utils.CoordinateConverter;
 import com.lbsphoto.app.R;
+import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
 import com.lbsphoto.app.util.LogUtils;
@@ -108,7 +110,6 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                                     @Override
                                     public void run() {
                                         reGeoLatLng(photoUpImageItem.getImagePath(), bitmap);
-
                                     }
                                 });
                             }
@@ -230,8 +231,6 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             options.inJustDecodeBounds = false;
             Bitmap bm = BitmapFactory.decodeFile(cameraFile.getAbsolutePath(), options);
             LogUtils.i(TAG, "camera file:" + cameraFile.getAbsolutePath());
-            reGeoLatLng(cameraFile.getAbsolutePath(), bm);
-
             try {
                 String insert = MediaStore.Images.Media.insertImage(getContentResolver(),
                         cameraFile.getAbsolutePath(), cameraFile.getName(), "lbs photo image");
@@ -240,7 +239,51 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 e.printStackTrace();
             }
             sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(cameraFile)));
+            mediaConnection(cameraFile.getAbsolutePath());
+            scanFilePath(cameraFile);
 
+            reGeoLatLng(cameraFile.getAbsolutePath(), bm);
+        }
+    }
+    private MediaScannerConnection mMediaConnection;
+    private void mediaConnection(final String path) {
+        try {
+            mMediaConnection = new MediaScannerConnection(LbsPhotoApplication.getAppContext(), new MediaScannerConnection.MediaScannerConnectionClient() {
+                @Override
+                public void onMediaScannerConnected() {
+                    LogUtils.i(TAG, "onMediaScannerConnected");
+                    mMediaConnection.scanFile(path,"image/jpeg");
+                }
+                @Override
+                public void onScanCompleted(String path, Uri uri) {
+                    LogUtils.i(TAG, "onScanCompleted");
+                    mMediaConnection.disconnect();
+                }
+            });
+            mMediaConnection.connect();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void scanFilePath(File path) {
+        // 判断SDK版本是不是4.4或者高于4.4
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+            String[] paths = new String[]{path.getAbsolutePath(), path.getParentFile().getAbsolutePath()};
+            MediaScannerConnection.scanFile(LbsPhotoApplication.getAppContext(), paths, null, null);
+        } else {
+            final Intent intent;
+            if (path.isDirectory()) {
+                intent = new Intent(Intent.ACTION_MEDIA_MOUNTED);
+                intent.setClassName("com.android.providers.media", "com.android.providers.media.MediaScannerReceiver");
+                intent.setData(Uri.fromFile(Environment.getExternalStorageDirectory()));
+                Log.v(TAG, "directory changed, send broadcast:" + intent.toString());
+            } else {
+                intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+                intent.setData(Uri.fromFile(path));
+                Log.v(TAG, "file changed, send broadcast:" + intent.toString());
+            }
+            sendBroadcast(intent);
         }
     }
 
@@ -249,6 +292,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         super.onDestroy();
         mapView.onDestroy();
         mLocationClient.stop();
+        mMediaConnection = null;
     }
 
     @Override
