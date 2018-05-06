@@ -22,11 +22,15 @@ import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
 import com.bumptech.glide.Glide;
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.application.LbsPhotoApplication;
+import com.lbsphoto.app.application.RequestCode;
+import com.lbsphoto.app.dbmanager.DBManager;
+import com.lbsphoto.app.util.LatLonUtil;
+import com.lbsphoto.app.util.LogUtils;
 
 import java.io.IOException;
 
 /**
- * @author
+ * @author LBSPHOTO
  */
 public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResultListener {
     private ImageView srcIm;
@@ -50,7 +54,10 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
         addressTx = findViewById(R.id.image_item_address);
         phoneInfoTx = findViewById(R.id.image_item_phone_info);
         timeTx = findViewById(R.id.image_item_time);
+        setData(path);
+    }
 
+    private void setData(String path) {
         Glide.with(LbsPhotoApplication.getAppContext())
                 .load("file://" + path)
                 .into(srcIm);
@@ -66,18 +73,27 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
         });
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-    }
-
     private void reGeoLatLng(final String path) {
         String latLngStr = getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
         double lon = Double.parseDouble(latLngStr.split("-")[1]);
-        final LatLng latLng = new LatLng(lat, lon);
+        LatLng latLng = new LatLng(lat, lon);
+        if (!(lat - 0 <= RequestCode.DOUBLE_ZERO && lon - 0 <= RequestCode.DOUBLE_ZERO)) {
+            //do nothing
+        } else {
+            String latlng = DBManager.getInstance(LbsPhotoApplication.getAppContext())
+                    .getCameraPath(path);
+            LogUtils.i("ImageInfoActivity", "find lat lng:" + latlng);
+            latLngStr = latlng;
+            if (!TextUtils.isEmpty(latlng)) {
+                lat = Double.parseDouble(latLngStr.split("-")[0]);
+                lon = Double.parseDouble(latLngStr.split("-")[1]);
+                latLng = new LatLng(lat, lon);
+            }
+        }
         // 如果经纬度为空并且是来源于拍照的话，那么就调用定位方法，此处逻辑还需要优化
-
+        LogUtils.i("ImageInfoActivity", "latLng:" + latLng.toString());
+        setDiffColor(locationTx, "经纬度：" + lat + ";" + lon);
         geoCoder = GeoCoder.newInstance();
         geoCoder.setOnGetGeoCodeResultListener(this);
         ReverseGeoCodeOption reverseGeoCodeOption = new ReverseGeoCodeOption();
@@ -116,42 +132,16 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
             String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
             String lngRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF);
             if (latValue != null && latRef != null && lngValue != null && lngRef != null) {
-                output1 = convertRationalLatLonToFloat(latValue, latRef);
-                output2 = convertRationalLatLonToFloat(lngValue, lngRef);
+                output1 = LatLonUtil.convertRationalLatLonToFloat(latValue, latRef);
+                output2 = LatLonUtil.convertRationalLatLonToFloat(lngValue, lngRef);
             }
             setDiffColor(phoneInfoTx, "手机型号：" + deviceName + "," + deviceModel);
-            setDiffColor(locationTx, "经纬度：" + output1 + ";" + output2);
-
             setDiffColor(timeTx, "拍摄时间：" + datetime);
         } catch (IllegalArgumentException|IOException e) {
-
+            output1 = 0;
+            output2 = 0;
         }
         return output1 + "-" + output2;
-    }
-
-    private static float convertRationalLatLonToFloat(
-            String rationalString, String ref) {
-
-        String[] parts = rationalString.split(",");
-
-        String[] pair;
-        pair = parts[0].split("/");
-        double degrees = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        pair = parts[1].split("/");
-        double minutes = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        pair = parts[2].split("/");
-        double seconds = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        double result = degrees + (minutes / 60.0) + (seconds / 3600.0);
-        if ((ref.equals("S") || ref.equals("W"))) {
-            return (float) -result;
-        }
-        return (float) result;
     }
 
     /**
@@ -167,5 +157,13 @@ public class ImageInfoActivity extends BaseActivity implements OnGetGeoCoderResu
         sp.setSpan(new ForegroundColorSpan(Color.RED),str.indexOf("：")+1,str.length(), Spannable.SPAN_EXCLUSIVE_INCLUSIVE);
         textView.setText(sp);
         textView.setMovementMethod(LinkMovementMethod.getInstance());
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (geoCoder != null) {
+            geoCoder.destroy();
+        }
     }
 }

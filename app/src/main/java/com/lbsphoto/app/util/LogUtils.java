@@ -4,10 +4,6 @@ import android.util.Log;
 
 import com.lbsphoto.app.BuildConfig;
 
-/**
- * @author husyin
- * @date 2018/5/2
- */
 public class LogUtils {
     public static void i(String tag, String log) {
         if (BuildConfig.DEBUG) {

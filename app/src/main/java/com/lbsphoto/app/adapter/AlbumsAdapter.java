@@ -22,14 +22,13 @@ public class AlbumsAdapter extends BaseAdapter {
 
 	private List<PhotoUpImageBucket> arrayList;
 	private LayoutInflater layoutInflater;
-	private String TAG = AlbumsAdapter.class.getSimpleName();
 	private Context mContext;
 
-	public AlbumsAdapter(Context context){
+	public AlbumsAdapter(Context context) {
 		mContext = context;
 		layoutInflater = LayoutInflater.from(context);
-		arrayList = new ArrayList<PhotoUpImageBucket>();//初始化集合
-	};
+		arrayList = new ArrayList<PhotoUpImageBucket>();
+	}
 	@Override
 	public int getCount() {
 		return arrayList.size();

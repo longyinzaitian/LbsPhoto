@@ -13,6 +13,9 @@ import com.lbsphoto.app.util.ToastUtils;
 public class LbsPhotoApplication extends Application {
     private static LbsPhotoApplication mContext;
     public static User user;
+    public static double mCurLat;
+    public static double mCurLng;
+
     @Override
     public void onCreate() {
         super.onCreate();

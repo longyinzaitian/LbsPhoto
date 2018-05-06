@@ -12,9 +12,6 @@ import android.widget.TextView;
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.adapter.AlbumItemAdapter;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
-import com.lbsphoto.app.bean.PhotoUpImageItem;
-
-import java.util.ArrayList;
 
 /**
  * @author lbsphoto
@@ -24,8 +21,6 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 	private GridView gridView;
 	private TextView back,ok;
 	private PhotoUpImageBucket photoUpImageBucket;
-	private ArrayList<PhotoUpImageItem> selectImages;
-	private AlbumItemAdapter adapter;
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -37,11 +32,10 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 		gridView = (GridView) findViewById(R.id.album_item_gridv);
 		back = (TextView) findViewById(R.id.back);
 		ok = (TextView) findViewById(R.id.sure);
-		selectImages = new ArrayList<PhotoUpImageItem>();
 		
 		Intent intent = getIntent();
 		photoUpImageBucket = (PhotoUpImageBucket) intent.getParcelableExtra("imagelist");
-		adapter = new AlbumItemAdapter(photoUpImageBucket.getImageList(), AlbumItemActivity.this);
+		AlbumItemAdapter adapter = new AlbumItemAdapter(photoUpImageBucket.getImageList(), AlbumItemActivity.this);
 		gridView.setAdapter(adapter);
 	}
 
@@ -59,26 +53,15 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 			}
 		});
 
-		findViewById(R.id.image_item_return).setOnClickListener(new OnClickListener() {
-			@Override
-			public void onClick(View v) {
-				finish();
-			}
-		});
+		findViewById(R.id.image_item_return).setOnClickListener(this);
 	}
 
 	@Override
 	public void onClick(View v) {
 		switch (v.getId()) {
-		case R.id.back:
-			finish();
-			break;
-		case R.id.sure:
-			Intent intent = new Intent(AlbumItemActivity.this,SelectedImagesActivity.class);
-			intent.putExtra("selectIma", selectImages);
-			startActivity(intent);
-			break;
-
+			case R.id.image_item_return:
+				finish();
+				break;
 		default:
 			break;
 		}

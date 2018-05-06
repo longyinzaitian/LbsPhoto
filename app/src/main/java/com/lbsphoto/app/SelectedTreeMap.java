@@ -5,8 +5,6 @@ import android.net.Uri;
 import java.io.Serializable;
 import java.util.TreeMap;
 
-/**
- */
 public class SelectedTreeMap implements Serializable {
     private TreeMap<Long, Uri> treeMap;
 

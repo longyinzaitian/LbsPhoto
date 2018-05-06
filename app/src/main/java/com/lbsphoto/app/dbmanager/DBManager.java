@@ -7,14 +7,13 @@ import android.text.TextUtils;
 
 import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.bean.User;
+import com.lbsphoto.app.util.LogUtils;
 
 public class DBManager {
     private static DBManager dbManager;
-    private Context context;
     private MyDBHelper myDBHelper;
 
     private DBManager(Context context) {
-        this.context = context;
         myDBHelper = new MyDBHelper(context);
     }
     
@@ -114,4 +113,40 @@ public class DBManager {
 		}
 		return isRegiter;
     }
+
+	public void insertCameraPath(String path, String latlng) {
+    	if (!TextUtils.isEmpty(getCameraPath(path))) {
+			deleteCameraPath(path);
+    	}
+		String sql = "insert into " + MyDBHelper.T_CAMERA_NAME + "(path, lat_lng) values(\'"
+				+ path + "\', \'" + latlng + "\');";
+        LogUtils.i("DBManager", "insertCameraPath  sql:" + sql);
+		execSql(sql);
+	}
+
+	private void deleteCameraPath(String path) {
+		getDbHelper().getWritableDatabase().delete(MyDBHelper.T_CAMERA_NAME, "path=?", new String[]{path});
+	}
+
+    public String getCameraPath(String path) {
+		MyDBHelper myDBHelper = getDbHelper();
+		Cursor cursor = myDBHelper.getWritableDatabase().query(MyDBHelper.T_CAMERA_NAME, null, null, null, null, null, null);
+		String pathLatLng = "";
+		if (cursor != null && cursor.getCount()>0) {
+			cursor.moveToFirst();
+			do {
+				String pathCol = cursor.getString(cursor.getColumnIndex(MyDBHelper.TABLE_PATH));
+				String latlng = cursor.getString(cursor.getColumnIndex(MyDBHelper.TABLE_LAT_LNG));
+				if (pathCol.equals(path)) {
+					LogUtils.i("DBManager", "getCameraPath   find:" + latlng);
+					pathLatLng = latlng;
+					break;
+				}
+			} while (cursor.moveToNext());
+		}
+		if (cursor != null) {
+			cursor.close();
+		}
+		return pathLatLng;
+	}
 }

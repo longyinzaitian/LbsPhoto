@@ -1,17 +1,19 @@
 package com.lbsphoto.app.activity;
 
 import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.ExifInterface;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.v4.content.FileProvider;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -38,14 +40,18 @@ import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.application.LbsPhotoApplication;
+import com.lbsphoto.app.application.RequestCode;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
+import com.lbsphoto.app.dbmanager.DBManager;
+import com.lbsphoto.app.util.ImageBitmapUtil;
+import com.lbsphoto.app.util.LatLonUtil;
 import com.lbsphoto.app.util.LogUtils;
 import com.lbsphoto.app.util.PhotoUpAlbumHelper;
+import com.lbsphoto.app.util.ThreadCenter;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
@@ -61,13 +67,16 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     private ImageView settingIm;
     private ImageView cameraIm;
     private MapView mapView;
+    /** 相机拍照返回文件图片 */
     private File cameraFile;
     private ImageView cameraImResult;
 
+    /** 标记mark点击时间，防止重复点击 */
     private long mLastClickTime;
-    private String mImagePath;
+    /** 标记相机拍照返回 */
     private boolean isCameraResultFile = false;
-    private LatLng mCurLatLng;
+    /** 标记第一次定位 */
+    private boolean isFirstLocation = true;
 
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
@@ -82,10 +91,6 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         mapView = findViewById(R.id.map_view);
         cameraImResult = findViewById(R.id.camera_result);
 
-        albumIm.setOnClickListener(this);
-        settingIm.setOnClickListener(this);
-        cameraIm.setOnClickListener(this);
-
         PhotoUpAlbumHelper photoUpAlbumHelper = PhotoUpAlbumHelper.getHelper();
         photoUpAlbumHelper.init(MainActivity.this);
         photoUpAlbumHelper.setGetAlbumList(new PhotoUpAlbumHelper.GetAlbumList() {
@@ -94,41 +99,51 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 if (list == null || list.isEmpty()) {
                     return;
                 }
-
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        for (PhotoUpImageBucket bucket : list) {
-                            List<PhotoUpImageItem> photoUpImageItems = bucket.imageList;
-                            if (photoUpImageItems == null || photoUpImageItems.isEmpty()) {
-                                continue;
-                            }
-
-                            for (final PhotoUpImageItem photoUpImageItem : photoUpImageItems) {
-                                if (photoUpImageItem == null) {
-                                    continue;
-                                }
-
-                                final BitmapFactory.Options options = new BitmapFactory.Options();
-                                options.inJustDecodeBounds = true;
-                                BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
-                                options.inSampleSize = calculateInSampleSize(options, 50, 50);
-                                options.inJustDecodeBounds = false;
-                                final Bitmap bitmap = BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
-                                mapView.post(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        reGeoLatLng(photoUpImageItem.getImagePath(), bitmap);
-                                    }
-                                });
-                            }
-                        }
-                    }
-                }).start();
+                dealPhotoImageBucketList(list);
             }
         });
         photoUpAlbumHelper.execute(false);
+        getLocation();
+    }
 
+    /** 处理本地图片 找准位置显示在地图上 */
+    private void dealPhotoImageBucketList(final List<PhotoUpImageBucket> list) {
+        ThreadCenter.getInstance().excuteThread(new Runnable() {
+            @Override
+            public void run() {
+                for (PhotoUpImageBucket bucket : list) {
+                    List<PhotoUpImageItem> photoUpImageItems = bucket.imageList;
+                    if (photoUpImageItems == null || photoUpImageItems.isEmpty()) {
+                        continue;
+                    }
+
+                    for (final PhotoUpImageItem photoUpImageItem : photoUpImageItems) {
+                        if (photoUpImageItem == null) {
+                            continue;
+                        }
+
+                        final BitmapFactory.Options options = new BitmapFactory.Options();
+                        options.inJustDecodeBounds = true;
+                        BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
+                        options.inSampleSize = ImageBitmapUtil.calculateInSampleSize(options, 50, 50);
+                        options.inJustDecodeBounds = false;
+                        final Bitmap bitmap = BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
+                        reGeoLatLng(photoUpImageItem.getImagePath(), bitmap);
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void setListener() {
+        albumIm.setOnClickListener(this);
+        settingIm.setOnClickListener(this);
+        cameraIm.setOnClickListener(this);
+    }
+
+    /** 定位 逻辑 */
+    private void getLocation() {
         mLocationClient = new LocationClient(getApplicationContext());
         //声明LocationClient类
         mLocationClient.registerLocationListener(myListener);
@@ -182,9 +197,25 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         mLocationClient.start();
     }
 
+    /** 循环定位  定位当前位置  每个10秒进行定位操作 */
+    private Handler handler = new Handler();
+    private Runnable locationRunnable = new Runnable() {
+        @Override
+        public void run() {
+            LogUtils.i(TAG, "isStart:" + mLocationClient.isStarted());
+            if (!mLocationClient.isStarted()) {
+                getLocation();
+            }
+        }
+    };
+
+    /** 定位回调 */
     class MyLocationListener extends BDAbstractLocationListener {
         @Override
         public void onReceiveLocation(BDLocation location) {
+            mLocationClient.unRegisterLocationListener(myListener);
+            mLocationClient.stop();
+            handler.postDelayed(locationRunnable, 10 * 1000);
             MyLocationData locData = new MyLocationData.Builder()
                     //定位精度
                     .accuracy(location.getRadius())
@@ -199,16 +230,21 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
             LatLng latLng = new LatLng(location.getLatitude(),
                     location.getLongitude());
-            mCurLatLng = latLng;
-            //定义地图状态
-            //MapStatus.Builder地图状态构造器
-            MapStatus.Builder builder = new MapStatus.Builder();
-            //设置地图中心点,为我们的位置
-            builder.target(latLng)
-                    //设置地图缩放级别
-                    .zoom(16.0f);
-            //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
-            mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+            LogUtils.i(TAG, "update lat lng:" + latLng);
+            LbsPhotoApplication.mCurLat = location.getLatitude();
+            LbsPhotoApplication.mCurLng = location.getLongitude();
+            if (isFirstLocation) {
+                isFirstLocation = false;
+                //定义地图状态
+                //MapStatus.Builder地图状态构造器
+                MapStatus.Builder builder = new MapStatus.Builder();
+                //设置地图中心点,为我们的位置
+                builder.target(latLng)
+                        //设置地图缩放级别
+                        .zoom(16.0f);
+                //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
+                mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+            }
         }
     }
 
@@ -234,12 +270,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
-            new Thread(new Runnable() {
+            ThreadCenter.getInstance().excuteThread(new Runnable() {
                 @Override
                 public void run() {
                     getCameraResultFile(cameraFile.getAbsolutePath(), cameraFile.getName());
                 }
-            }).start();
+            });
         }
     }
 
@@ -247,7 +283,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(cameraFilePath, options);
-        options.inSampleSize = calculateInSampleSize(options, 50, 50);
+        options.inSampleSize = ImageBitmapUtil.calculateInSampleSize(options, 50, 50);
         options.inJustDecodeBounds = false;
         final Bitmap bm = BitmapFactory.decodeFile(cameraFilePath, options);
         LogUtils.i(TAG, "camera file:" + cameraFilePath);
@@ -263,26 +299,9 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                     LogUtils.e(TAG, "error: Images.Media.insertImage");
                 }
 
-                try {
-                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(cameraFilePath))));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    LogUtils.e(TAG, "error : sendBroadcast  action:ACTION_MEDIA_SCANNER_SCAN_FILE");
-                }
+                sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(cameraFilePath))));
+                mediaConnection(cameraFilePath);
 
-                try {
-                    mediaConnection(cameraFilePath);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    LogUtils.e(TAG, "error : mediaConnection");
-                }
-
-                try {
-                    scanFilePath(new File(cameraFilePath));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    LogUtils.e(TAG, "error : scanFilePath");
-                }
                 isCameraResultFile = true;
                 reGeoLatLng(cameraFilePath, bm);
             }
@@ -315,33 +334,16 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
-    private void scanFilePath(File path) {
-        // 判断SDK版本是不是4.4或者高于4.4
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            String[] paths = new String[]{path.getAbsolutePath(), path.getParentFile().getAbsolutePath()};
-            MediaScannerConnection.scanFile(LbsPhotoApplication.getAppContext(), paths, null, null);
-        } else {
-            final Intent intent;
-            if (path.isDirectory()) {
-                intent = new Intent(Intent.ACTION_MEDIA_MOUNTED);
-                intent.setClassName("com.android.providers.media", "com.android.providers.media.MediaScannerReceiver");
-                intent.setData(Uri.fromFile(Environment.getExternalStorageDirectory()));
-                Log.v(TAG, "directory changed, send broadcast:" + intent.toString());
-            } else {
-                intent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-                intent.setData(Uri.fromFile(path));
-                Log.v(TAG, "file changed, send broadcast:" + intent.toString());
-            }
-            sendBroadcast(intent);
-        }
-    }
-
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mapView.onDestroy();
+        mLocationClient.unRegisterLocationListener(myListener);
         mLocationClient.stop();
         mMediaConnection = null;
+        if (handler != null) {
+            handler.removeCallbacksAndMessages(null);
+        }
     }
 
     @Override
@@ -359,7 +361,8 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     private void selectPhoto(int type) {
         String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss")
                 .format(new Date());
-        mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator+ "lbsphoto";
+        String mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + File.separator + RequestCode.FILE_PATH;
         final File tmpCameraFile = new File(mImagePath, timeStamp + ".jpg");
         if (!tmpCameraFile.getParentFile().exists()) {
             tmpCameraFile.getParentFile().mkdir();
@@ -382,21 +385,42 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         }
     }
 
+    private LatLng reGeoLatLng = null;
     private void reGeoLatLng(final String path, final Bitmap bitmap) {
-        String latLngStr = getPhotoLocation(path);
+        String latLngStr = LatLonUtil.getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
         double lon = Double.parseDouble(latLngStr.split("-")[1]);
-        final LatLng latLng;
-        if (!(lat - 0 <= 0.001 && lon - 0 <= 0.001)) {
-            latLng = new LatLng(lat, lon);
+        if (isCameraResultFile) {
+            if (!(lat - 0 <= RequestCode.DOUBLE_ZERO && lon - 0 <= RequestCode.DOUBLE_ZERO)) {
+            } else {
+                lat = LbsPhotoApplication.mCurLat;
+                lon = LbsPhotoApplication.mCurLng;
+            }
+            reGeoLatLng = new LatLng(lat, lon);
+            DBManager.getInstance(LbsPhotoApplication.getAppContext()).insertCameraPath(path, lat+"-"+ lon);
         } else {
-            latLng = mCurLatLng;
+            if (!(lat - 0 <= RequestCode.DOUBLE_ZERO && lon - 0 <= RequestCode.DOUBLE_ZERO)) {
+                reGeoLatLng = new LatLng(lat, lon);
+            } else {
+                String latlng = DBManager.getInstance(LbsPhotoApplication.getAppContext())
+                        .getCameraPath(path);
+                latLngStr = latlng;
+                if (!TextUtils.isEmpty(latlng)) {
+                    lat = Double.parseDouble(latLngStr.split("-")[0]);
+                    lon = Double.parseDouble(latLngStr.split("-")[1]);
+                    reGeoLatLng = new LatLng(lat, lon);
+                }
+            }
+        }
+
+        if (reGeoLatLng == null) {
+            return;
         }
 
         Bundle bundle = new Bundle();
         bundle.putString("path", path);
         BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
-        CoordinateConverter coordinateConverter = new CoordinateConverter().coord(latLng);
+        CoordinateConverter coordinateConverter = new CoordinateConverter().coord(reGeoLatLng);
         OverlayOptions overlayOptions = new MarkerOptions()
                 .position(coordinateConverter.convert())
                 .icon(bitmapDescriptor)
@@ -422,7 +446,6 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
         if (isCameraResultFile) {
             isCameraResultFile = false;
-
             Glide.with(LbsPhotoApplication.getAppContext())
                     .load(path)
                     .listener(new RequestListener<String, GlideDrawable>() {
@@ -433,107 +456,38 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
                         @Override
                         public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
-                            cameraImResult.animate()
-                                    .alpha(0.0f)
-                                    .setListener(new Animator.AnimatorListener() {
-                                        @Override
-                                        public void onAnimationStart(Animator animation) {
-                                        }
-
-                                        @Override
-                                        public void onAnimationEnd(Animator animation) {
-                                            //定义地图状态
-                                            //MapStatus.Builder地图状态构造器
-                                            MapStatus.Builder builder = new MapStatus.Builder();
-                                            //设置地图中心点,为我们的位置
-                                            builder.target(latLng)
-                                                    //设置地图缩放级别
-                                                    .zoom(16.0f);
-                                            //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
-                                            mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
-                                        }
-
-                                        @Override
-                                        public void onAnimationCancel(Animator animation) {
-                                        }
-
-                                        @Override
-                                        public void onAnimationRepeat(Animator animation) {
-                                        }
-                                    })
-                                    .setDuration(1000)
-                                    .setStartDelay(200)
-                                    .start();
+                            startAnimate();
                             return false;
                         }
                     })
                     .into(cameraImResult);
-
-
         }
     }
 
-    private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
-
-        if (height > reqHeight || width > reqWidth) {
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-            while ((halfHeight / inSampleSize) > reqHeight
-                    && (halfWidth / inSampleSize) > reqWidth) {
-                inSampleSize *= 2;
-            }
-        }
-        return inSampleSize;
+    /** 启动动画   透明度逐渐透明  宽高逐渐缩放最小 */
+    private void startAnimate() {
+        cameraImResult.animate()
+                .alpha(0.0f)
+                .scaleX(0.1f)
+                .scaleY(0.1f)
+                .setListener(new AnimatorListenerAdapter() {
+                    @Override
+                    public void onAnimationStart(Animator animation) {
+                        super.onAnimationStart(animation);
+                        //定义地图状态
+                        //MapStatus.Builder地图状态构造器
+                        CoordinateConverter coordinateConverter = new CoordinateConverter().coord(reGeoLatLng);
+                        MapStatus.Builder builder = new MapStatus.Builder();
+                        //设置地图中心点,为我们的位置
+                        builder.target(coordinateConverter.convert())
+                                //设置地图缩放级别
+                                .zoom(16.0f);
+                        //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
+                        mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+                    }
+                })
+                .setDuration(1000)
+                .setStartDelay(200)
+                .start();
     }
-
-
-    public String getPhotoLocation(String imagePath) {
-        float output1 = 0;
-        float output2 = 0;
-
-        try {
-            ExifInterface exifInterface = new ExifInterface(imagePath);
-            // 拍摄时间
-            String latValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
-            String lngValue = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
-            String latRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LATITUDE_REF);
-            String lngRef = exifInterface.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF);
-            if (latValue != null && latRef != null && lngValue != null && lngRef != null) {
-                output1 = convertRationalLatLonToFloat(latValue, latRef);
-                output2 = convertRationalLatLonToFloat(lngValue, lngRef);
-            }
-        } catch (IllegalArgumentException|IOException e) {
-
-        }
-        return output1 + "-" + output2;
-    }
-
-    private static float convertRationalLatLonToFloat(
-            String rationalString, String ref) {
-
-        String[] parts = rationalString.split(",");
-
-        String[] pair;
-        pair = parts[0].split("/");
-        double degrees = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        pair = parts[1].split("/");
-        double minutes = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        pair = parts[2].split("/");
-        double seconds = Double.parseDouble(pair[0].trim())
-                / Double.parseDouble(pair[1].trim());
-
-        double result = degrees + (minutes / 60.0) + (seconds / 3600.0);
-        if ((ref.equals("S") || ref.equals("W"))) {
-            return (float) -result;
-        }
-        return (float) result;
-    }
-
 }

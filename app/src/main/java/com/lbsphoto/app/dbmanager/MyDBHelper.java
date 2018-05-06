@@ -16,6 +16,10 @@ public class MyDBHelper extends SQLiteOpenHelper {
     public final static String TABLE_MOBILE = "mobile";
     public final static String TABLE_EMAIL = "email";
     public final static String TABLE_AVATAR = "avatar";
+
+    public final static String T_CAMERA_NAME = "camera_t_name";
+    public final static String TABLE_PATH = "path";
+    public final static String TABLE_LAT_LNG = "lat_lng";
     
 
     public MyDBHelper(Context context, String name, SQLiteDatabase.CursorFactory factory, int version) {
@@ -54,5 +58,13 @@ public class MyDBHelper extends SQLiteOpenHelper {
                 + ");";
         //执行创建表格语句
         db.execSQL(sql);
+
+        String sql_camera = "create table if not exists " + T_CAMERA_NAME + "("
+                + TABLE_ID + " Integer primary key AUTOINCREMENT, "
+                + TABLE_PATH + " TEXT, "
+                + TABLE_LAT_LNG + " TEXT"
+                + ");";
+        //执行创建表格语句
+        db.execSQL(sql_camera);
 	}
 }
