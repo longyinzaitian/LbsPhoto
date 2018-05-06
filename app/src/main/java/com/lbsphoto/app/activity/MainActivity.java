@@ -1,5 +1,6 @@
 package com.lbsphoto.app.activity;
 
+import android.animation.Animator;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -31,6 +32,10 @@ import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
 import com.baidu.mapapi.utils.CoordinateConverter;
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.resource.drawable.GlideDrawable;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
@@ -57,9 +62,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     private ImageView cameraIm;
     private MapView mapView;
     private File cameraFile;
+    private ImageView cameraImResult;
 
     private long mLastClickTime;
     private String mImagePath;
+    private boolean isCameraResultFile = false;
+    private LatLng mCurLatLng;
 
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
@@ -72,6 +80,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         settingIm = findViewById(R.id.setting_logo);
         cameraIm = findViewById(R.id.camera_logo);
         mapView = findViewById(R.id.map_view);
+        cameraImResult = findViewById(R.id.camera_result);
 
         albumIm.setOnClickListener(this);
         settingIm.setOnClickListener(this);
@@ -190,6 +199,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
             LatLng latLng = new LatLng(location.getLatitude(),
                     location.getLongitude());
+            mCurLatLng = latLng;
             //定义地图状态
             //MapStatus.Builder地图状态构造器
             MapStatus.Builder builder = new MapStatus.Builder();
@@ -224,27 +234,61 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
-            BitmapFactory.Options options = new BitmapFactory.Options();
-            options.inJustDecodeBounds = true;
-            BitmapFactory.decodeFile(cameraFile.getAbsolutePath(), options);
-            options.inSampleSize = calculateInSampleSize(options, 50, 50);
-            options.inJustDecodeBounds = false;
-            Bitmap bm = BitmapFactory.decodeFile(cameraFile.getAbsolutePath(), options);
-            LogUtils.i(TAG, "camera file:" + cameraFile.getAbsolutePath());
-            try {
-                String insert = MediaStore.Images.Media.insertImage(getContentResolver(),
-                        cameraFile.getAbsolutePath(), cameraFile.getName(), "lbs photo image");
-                LogUtils.i(TAG, "insert:" + insert + ", file name:" + cameraFile.getName());
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(cameraFile)));
-            mediaConnection(cameraFile.getAbsolutePath());
-            scanFilePath(cameraFile);
-
-            reGeoLatLng(cameraFile.getAbsolutePath(), bm);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    getCameraResultFile(cameraFile.getAbsolutePath(), cameraFile.getName());
+                }
+            }).start();
         }
     }
+
+    private void getCameraResultFile(final String cameraFilePath, final String name) {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(cameraFilePath, options);
+        options.inSampleSize = calculateInSampleSize(options, 50, 50);
+        options.inJustDecodeBounds = false;
+        final Bitmap bm = BitmapFactory.decodeFile(cameraFilePath, options);
+        LogUtils.i(TAG, "camera file:" + cameraFilePath);
+        mapView.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    String insert = MediaStore.Images.Media.insertImage(getContentResolver(),
+                            cameraFilePath, name, "lbs photo image");
+                    LogUtils.i(TAG, "insert:" + insert + ", file name:" + name);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                    LogUtils.e(TAG, "error: Images.Media.insertImage");
+                }
+
+                try {
+                    sendBroadcast(new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(new File(cameraFilePath))));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    LogUtils.e(TAG, "error : sendBroadcast  action:ACTION_MEDIA_SCANNER_SCAN_FILE");
+                }
+
+                try {
+                    mediaConnection(cameraFilePath);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    LogUtils.e(TAG, "error : mediaConnection");
+                }
+
+                try {
+                    scanFilePath(new File(cameraFilePath));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    LogUtils.e(TAG, "error : scanFilePath");
+                }
+                isCameraResultFile = true;
+                reGeoLatLng(cameraFilePath, bm);
+            }
+        });
+    }
+
     private MediaScannerConnection mMediaConnection;
     private void mediaConnection(final String path) {
         try {
@@ -252,7 +296,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 @Override
                 public void onMediaScannerConnected() {
                     LogUtils.i(TAG, "onMediaScannerConnected");
-                    mMediaConnection.scanFile(path,"image/jpeg");
+                    try {
+                        mMediaConnection.scanFile(path,"image/jpeg");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        LogUtils.e(TAG, "onMediaScannerConnected error");
+                    }
                 }
                 @Override
                 public void onScanCompleted(String path, Uri uri) {
@@ -337,7 +386,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         String latLngStr = getPhotoLocation(path);
         double lat = Double.parseDouble(latLngStr.split("-")[0]);
         double lon = Double.parseDouble(latLngStr.split("-")[1]);
-        final LatLng latLng = new LatLng(lat, lon);
+        final LatLng latLng;
+        if (!(lat - 0 <= 0.001 && lon - 0 <= 0.001)) {
+            latLng = new LatLng(lat, lon);
+        } else {
+            latLng = mCurLatLng;
+        }
 
         Bundle bundle = new Bundle();
         bundle.putString("path", path);
@@ -366,6 +420,57 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             }
         });
 
+        if (isCameraResultFile) {
+            isCameraResultFile = false;
+
+            Glide.with(LbsPhotoApplication.getAppContext())
+                    .load(path)
+                    .listener(new RequestListener<String, GlideDrawable>() {
+                        @Override
+                        public boolean onException(Exception e, String model, Target<GlideDrawable> target, boolean isFirstResource) {
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(GlideDrawable resource, String model, Target<GlideDrawable> target, boolean isFromMemoryCache, boolean isFirstResource) {
+                            cameraImResult.animate()
+                                    .alpha(0.0f)
+                                    .setListener(new Animator.AnimatorListener() {
+                                        @Override
+                                        public void onAnimationStart(Animator animation) {
+                                        }
+
+                                        @Override
+                                        public void onAnimationEnd(Animator animation) {
+                                            //定义地图状态
+                                            //MapStatus.Builder地图状态构造器
+                                            MapStatus.Builder builder = new MapStatus.Builder();
+                                            //设置地图中心点,为我们的位置
+                                            builder.target(latLng)
+                                                    //设置地图缩放级别
+                                                    .zoom(16.0f);
+                                            //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
+                                            mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+                                        }
+
+                                        @Override
+                                        public void onAnimationCancel(Animator animation) {
+                                        }
+
+                                        @Override
+                                        public void onAnimationRepeat(Animator animation) {
+                                        }
+                                    })
+                                    .setDuration(1000)
+                                    .setStartDelay(200)
+                                    .start();
+                            return false;
+                        }
+                    })
+                    .into(cameraImResult);
+
+
+        }
     }
 
     private int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {

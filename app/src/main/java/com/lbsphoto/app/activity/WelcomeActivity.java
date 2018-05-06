@@ -43,7 +43,7 @@ public class WelcomeActivity extends BaseActivity {
                         mWelcomePic.postDelayed(new Runnable() {
                             @Override
                             public void run() {
-                                startActivity(new Intent(WelcomeActivity.this, MainActivity.class));
+                                startActivity(new Intent(WelcomeActivity.this, LoginActivity.class));
                                 finish();
                             }
                         }, 2000);

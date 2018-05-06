@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">地图相册</string>
+    <string name="no_permission_select_image">没有权限，无法选择图片！</string>
 </resources>

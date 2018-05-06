@@ -6,20 +6,25 @@ import android.database.Cursor;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Environment;
 import android.provider.MediaStore.Audio.Albums;
 import android.provider.MediaStore.Images.Media;
 import android.provider.MediaStore.Images.Thumbnails;
+import android.text.TextUtils;
 import android.util.Log;
 
+import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * @author lbsphoto
@@ -194,6 +199,7 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 	private List<PhotoUpImageBucket> getImagesBucketList() {
 		buildImagesBucketList(Media.EXTERNAL_CONTENT_URI);
 		buildImagesBucketList(Media.INTERNAL_CONTENT_URI);
+		scanLbsPhoto();
 
 		List<PhotoUpImageBucket> tmpList = new ArrayList<>();
 		Iterator<Entry<String, PhotoUpImageBucket>> itr = bucketList.entrySet().iterator();
@@ -203,6 +209,63 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 			tmpList.add(entry.getValue());
 		}
 		return tmpList;
+	}
+
+	private void scanLbsPhoto() {
+		String path = Environment.getExternalStorageDirectory() + File.separator+  "lbsphoto";
+		File parentFile = new File(path);
+		if (!parentFile.exists()) {
+			parentFile.mkdir();
+		}
+
+		File[] childFile = parentFile.listFiles();
+		if (childFile == null || childFile.length == 0) {
+			return;
+		}
+
+		for (File child : childFile) {
+			if (!reGeoLatLng(child.getAbsolutePath())) {
+				continue;
+			}
+
+			String key = "";
+			Set<Entry<String, PhotoUpImageBucket>> entrySet = bucketList.entrySet();
+			for (Entry<String, PhotoUpImageBucket> entry : entrySet) {
+			    PhotoUpImageBucket photoUpImageBucket = entry.getValue();
+			    if (photoUpImageBucket.bucketName.equals("lbsphoto")) {
+			        key = entry.getKey();
+			        break;
+                }
+            }
+
+            if (TextUtils.isEmpty(key)) {
+			    key = "lbsphoto";
+            }
+
+			PhotoUpImageBucket bucket = bucketList.get(key);
+			if (bucket == null) {
+				bucket = new PhotoUpImageBucket();
+				bucketList.put("lbsphoto", bucket);
+				bucket.imageList = new ArrayList<>();
+				bucket.bucketName = "lbsphoto";
+			}
+			PhotoUpImageItem imageItem = new PhotoUpImageItem();
+			imageItem.setImageId(child.getName());
+			imageItem.setImagePath(child.getAbsolutePath());
+			boolean isHas = false;
+			for (PhotoUpImageItem photoUpImageItem : bucket.imageList) {
+			    if (photoUpImageItem.getImagePath().equals(imageItem.getImagePath())) {
+                    //do nothing
+					isHas = true;
+					break;
+                }
+            }
+
+            if (!isHas) {
+				bucket.imageList.add(imageItem);
+				bucket.count++;
+			}
+		}
 	}
 
 	public void destoryList()
@@ -243,7 +306,7 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 		String latLngStr = getPhotoLocation(path);
 		double lat = Double.parseDouble(latLngStr.split("-")[0]);
 		double lon = Double.parseDouble(latLngStr.split("-")[1]);
-		return !(lat == 0 && lon == 0);
+		return !(lat - 0 <= 0.001 && lon - 0 <= 0.001);
 	}
 
 	private String getPhotoLocation(String imagePath) {

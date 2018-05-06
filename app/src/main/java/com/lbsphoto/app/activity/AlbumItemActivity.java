@@ -44,7 +44,9 @@ public class AlbumItemActivity extends BaseActivity implements OnClickListener {
 		adapter = new AlbumItemAdapter(photoUpImageBucket.getImageList(), AlbumItemActivity.this);
 		gridView.setAdapter(adapter);
 	}
-	private void setListener() {
+
+	@Override
+	protected void setListener() {
 		back.setOnClickListener(this);
 		ok.setOnClickListener(this);
 		gridView.setOnItemClickListener(new OnItemClickListener() {

@@ -42,6 +42,7 @@
             android:layout_toLeftOf="@+id/setting_logo"
             android:layout_centerVertical="true"
             android:layout_marginRight="10dp"
+            android:layout_alignParentRight="true"
             />
 
         <ImageView
@@ -53,6 +54,7 @@
             android:layout_alignParentRight="true"
             android:layout_centerVertical="true"
             android:layout_marginRight="15dp"
+            android:visibility="gone"
             />
     </RelativeLayout>
     <FrameLayout
@@ -71,6 +73,12 @@
             android:layout_marginRight="15dp"
             android:layout_gravity="right"
             android:layout_marginTop="15dp"
+            />
+        <ImageView
+            android:id="@+id/camera_result"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@null"
             />
     </FrameLayout>
 </LinearLayout>

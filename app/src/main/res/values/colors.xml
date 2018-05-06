@@ -4,4 +4,47 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="focus_color">#7f33b5e5</color>
+
+    <color name="white">@android:color/white</color>
+    <color name="white_8p">#14FFFFFF</color>
+    <color name="white_16p">#29FFFFFF</color>
+    <color name="white_24p">#3DFFFFFF</color>
+    <color name="white_50p">#80FFFFFF</color>
+    <color name="white_96p">#F5FFFFFF</color>
+    <color name="black">@android:color/black</color>
+    <color name="black_50p">#80000000</color>
+    <color name="red">#F44336</color>
+    <color name="red_30p">#4CF44336</color>
+    <color name="blue">#2196F3</color>
+    <color name="grey">#9E9E9E</color>
+    <color name="grey_50p">#809E9E9E</color>
+    <color name="grey_300">#E0E0E0</color>
+    <color name="grey_700_96p">#F5616161</color>
+    <color name="grey_300_96p">#F5E0E0E0</color>
+    <color name="grey_900">#212121</color>
+    <color name="grey_900_96p">#F5212121</color>
+
+    <color name="trans_white">#afffffff</color>
+    <color name="divider_color">#6fffffff</color>
+    <color name="bottom_color">#00000000</color>
+    <color name="top_color">#01589e</color>
+
+    <color name="holo_blue_light">#ff33b5e5</color>
+    <color name="holo_blue_light2">#aa33b5e5</color>
+    <color name="transparent">#00000000</color>
+    <color name="half_transparent">#3f000000</color>
+    <color name="grey_white">#fff0f0f0</color>
+    <color name="grey_dark_light">#55666666</color>
+    <color name="grey_dark">#ff454545</color>
+    <color name="holo_blue_dark">#ff0099cc</color>
+    <color name="holo_orange_dark">#ffff8800</color>
+    <color name="dialog_text_hint">#ffb0b0b0</color>
+    <color name="color_blue">#3F51B5</color>
+    <color name="black_transparent">#0f000000</color>
+
+    <color name="lrc_normal_text_color">#9E9E9E</color>
+    <color name="lrc_current_text_color">#FF4081</color>
+    <color name="lrc_timeline_text_color">#F8BBD0</color>
+    <color name="lrc_timeline_color">#809E9E9E</color>
+    <color name="lrc_time_text_color">#809E9E9E</color>
 </resources>
