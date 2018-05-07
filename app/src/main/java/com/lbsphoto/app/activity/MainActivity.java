@@ -7,12 +7,10 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.MediaStore;
-import android.support.v4.content.FileProvider;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -104,6 +102,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         });
         photoUpAlbumHelper.execute(false);
         getLocation();
+
     }
 
     /** 处理本地图片 找准位置显示在地图上 */
@@ -273,6 +272,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             ThreadCenter.getInstance().excuteThread(new Runnable() {
                 @Override
                 public void run() {
+                    cameraFile = new File(getExternalFilesDir(null), "pic.jpg");
                     getCameraResultFile(cameraFile.getAbsolutePath(), cameraFile.getName());
                 }
             });
@@ -368,19 +368,22 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             tmpCameraFile.getParentFile().mkdir();
         }
         if (type == RESULT_CAPTURE_CODE) {
-            Intent intent = new Intent(
-                    MediaStore.ACTION_IMAGE_CAPTURE);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                Uri cameraUri = FileProvider.getUriForFile(MainActivity.this,
-                        "com.lbsphoto.app.fileprovider", tmpCameraFile);
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                cameraFile = tmpCameraFile;
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
-            } else {
-                Uri cameraUri = Uri.fromFile(tmpCameraFile);
-                cameraFile = tmpCameraFile;
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
-            }
+//            Intent intent = new Intent(
+//                    MediaStore.ACTION_IMAGE_CAPTURE);
+//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+//                Uri cameraUri = FileProvider.getUriForFile(MainActivity.this,
+//                        "com.lbsphoto.app.fileprovider", tmpCameraFile);
+//                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+//                cameraFile = tmpCameraFile;
+//                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+//            } else {
+//                Uri cameraUri = Uri.fromFile(tmpCameraFile);
+//                cameraFile = tmpCameraFile;
+//                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+//            }
+//            startActivityForResult(intent, RESULT_CAPTURE_CODE);
+
+            Intent intent = new Intent(MainActivity.this, CameraActivity.class);
             startActivityForResult(intent, RESULT_CAPTURE_CODE);
         }
     }
