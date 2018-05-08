@@ -2,6 +2,8 @@ package com.lbsphoto.app.activity;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -46,6 +48,7 @@ import com.lbsphoto.app.util.ImageBitmapUtil;
 import com.lbsphoto.app.util.LatLonUtil;
 import com.lbsphoto.app.util.LogUtils;
 import com.lbsphoto.app.util.PhotoUpAlbumHelper;
+import com.lbsphoto.app.util.PreferenceUtil;
 import com.lbsphoto.app.util.ThreadCenter;
 
 import java.io.File;
@@ -78,6 +81,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
+    private PhotoUpAlbumHelper photoUpAlbumHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,7 +93,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         mapView = findViewById(R.id.map_view);
         cameraImResult = findViewById(R.id.camera_result);
 
-        PhotoUpAlbumHelper photoUpAlbumHelper = PhotoUpAlbumHelper.getHelper();
+        photoUpAlbumHelper = PhotoUpAlbumHelper.getHelper();
         photoUpAlbumHelper.init(MainActivity.this);
         photoUpAlbumHelper.setGetAlbumList(new PhotoUpAlbumHelper.GetAlbumList() {
             @Override
@@ -107,7 +111,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 
     /** 处理本地图片 找准位置显示在地图上 */
     private void dealPhotoImageBucketList(final List<PhotoUpImageBucket> list) {
-        ThreadCenter.getInstance().excuteThread(new Runnable() {
+        ThreadCenter.getInstance().executeThread(new Runnable() {
             @Override
             public void run() {
                 for (PhotoUpImageBucket bucket : list) {
@@ -255,6 +259,25 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 break;
 
             case R.id.setting_logo:
+                new AlertDialog.Builder(MainActivity.this)
+                        .setCancelable(false)
+                        .setTitle(R.string.app_name)
+                        .setMessage("退出登录？")
+                        .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+
+                            }
+                        })
+                        .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                PreferenceUtil.clearSp();
+                                startActivity(new Intent(MainActivity.this, LoginActivity.class));
+                                finish();
+                            }
+                        })
+                        .create().show();
                 break;
 
             case R.id.camera_logo:
@@ -269,7 +292,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
-            ThreadCenter.getInstance().excuteThread(new Runnable() {
+            ThreadCenter.getInstance().executeThread(new Runnable() {
                 @Override
                 public void run() {
                     cameraFile = (File) data.getSerializableExtra("file");
@@ -345,6 +368,12 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         if (handler != null) {
             handler.removeCallbacksAndMessages(null);
         }
+
+        if (photoUpAlbumHelper != null) {
+            photoUpAlbumHelper.cancel(true);
+        }
+
+        ThreadCenter.getInstance().shutDown();
     }
 
     @Override

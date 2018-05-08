@@ -12,12 +12,14 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.lbsphoto.app.R;
 import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.dbmanager.DBManager;
 import com.lbsphoto.app.util.Bind;
+import com.lbsphoto.app.util.PreferenceUtil;
 import com.lbsphoto.app.util.ToastUtils;
 
 public class LoginActivity extends BaseActivity implements OnClickListener{
@@ -33,6 +35,11 @@ public class LoginActivity extends BaseActivity implements OnClickListener{
 	private TextView loginBtn;
 	@Bind(R.id.login_register)
 	private TextView registerBtn;
+	@Bind(R.id.login_remember)
+	private LinearLayout rememberLl;
+	@Bind(R.id.login_remember_icon)
+	private ImageView rememberIcon;
+	private boolean isRemeber;
 	@Override
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -54,12 +61,25 @@ public class LoginActivity extends BaseActivity implements OnClickListener{
 				}
 			}
 		}
+
+		String name = PreferenceUtil.getLoginUser();
+		if (TextUtils.isEmpty(name)) {
+			rememberIcon.setImageResource(R.drawable.square_un_select);
+			isRemeber = false;
+		} else {
+			rememberIcon.setImageResource(R.drawable.squre_select);
+			isRemeber = true;
+			userText.setText(name);
+			passwordText.setText(PreferenceUtil.getLoginPass());
+			startMusicActivity();
+		}
 	}
 
 	@Override
 	protected void setListener() {
 		loginBtn.setOnClickListener(this);
 		registerBtn.setOnClickListener(this);
+		rememberLl.setOnClickListener(this);
 		userText.addTextChangedListener(new TextWatcher() {
 			
 			@Override
@@ -117,12 +137,27 @@ public class LoginActivity extends BaseActivity implements OnClickListener{
 				ToastUtils.show("账号密码不正确");
 			}
 			break;
+
+		case R.id.login_remember:
+			isRemeber = !isRemeber;
+			if (isRemeber) {
+				rememberIcon.setImageResource(R.drawable.squre_select);
+			} else {
+				rememberIcon.setImageResource(R.drawable.square_un_select);
+			}
+			break;
 		default:
 			break;
 		}
 	}
 
 	private void startMusicActivity() {
+		if (isRemeber) {
+			PreferenceUtil.saveLoginUser(userText.getText().toString().trim());
+			PreferenceUtil.saveLoginPass(passwordText.getText().toString().trim());
+		} else {
+			PreferenceUtil.clearSp();
+		}
         Intent intent = new Intent();
         intent.setClass(this, MainActivity.class);
         intent.putExtras(getIntent());

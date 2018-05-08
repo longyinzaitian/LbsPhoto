@@ -34,6 +34,10 @@ public class CameraActivity extends BaseActivity {
         cameraPreview.onPause();
     }
 
+    public void finish(View view) {
+        finish();
+    }
+
     public void takePic(View view) {
         final File tmpCameraFile = new File(FileUtils.getExtFilePath(), FileUtils.getExtFileName()+".jpg");
         cameraPreview.setOutPutDir(tmpCameraFile);

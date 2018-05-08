@@ -46,8 +46,15 @@ public class ThreadCenter {
         }
     };
 
-    public void excuteThread(Runnable runnable) {
+    public void executeThread(Runnable runnable) {
         init();
         threadPoolExecutor.execute(runnable);
+    }
+
+    public void shutDown() {
+        init();
+        threadPoolExecutor.shutdownNow();
+        threadPoolExecutor = null;
+        instance = null;
     }
 }
