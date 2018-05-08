@@ -266,13 +266,14 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    protected void onActivityResult(int requestCode, int resultCode, final Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == RESULT_CAPTURE_CODE && resultCode == RESULT_OK) {
             ThreadCenter.getInstance().excuteThread(new Runnable() {
                 @Override
                 public void run() {
-                    cameraFile = new File(getExternalFilesDir(null), "pic.jpg");
+                    cameraFile = (File) data.getSerializableExtra("file");
+                    LogUtils.i(TAG, "cameraFile:" + cameraFile);
                     getCameraResultFile(cameraFile.getAbsolutePath(), cameraFile.getName());
                 }
             });
@@ -424,8 +425,18 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         bundle.putString("path", path);
         BitmapDescriptor bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
         CoordinateConverter coordinateConverter = new CoordinateConverter().coord(reGeoLatLng);
+        LatLng markLatLng = coordinateConverter.convert();
+        if (isCameraResultFile) {
+            markLatLng = reGeoLatLng;
+        } else {
+            File parentFile = new File(path).getParentFile();
+            if (parentFile.getName().equals(RequestCode.FILE_PATH)) {
+                LogUtils.i(TAG, "parent file name is lbsphoto");
+                markLatLng = reGeoLatLng;
+            }
+        }
         OverlayOptions overlayOptions = new MarkerOptions()
-                .position(coordinateConverter.convert())
+                .position(markLatLng)
                 .icon(bitmapDescriptor)
                 .extraInfo(bundle);
         mapView.getMap().addOverlay(overlayOptions);
@@ -479,10 +490,9 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                         super.onAnimationStart(animation);
                         //定义地图状态
                         //MapStatus.Builder地图状态构造器
-                        CoordinateConverter coordinateConverter = new CoordinateConverter().coord(reGeoLatLng);
                         MapStatus.Builder builder = new MapStatus.Builder();
                         //设置地图中心点,为我们的位置
-                        builder.target(coordinateConverter.convert())
+                        builder.target(reGeoLatLng)
                                 //设置地图缩放级别
                                 .zoom(16.0f);
                         //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms

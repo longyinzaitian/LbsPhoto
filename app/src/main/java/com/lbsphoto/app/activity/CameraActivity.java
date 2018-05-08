@@ -1,11 +1,15 @@
 package com.lbsphoto.app.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.view.View;
 
 import com.lbsphoto.app.R;
+import com.lbsphoto.app.util.FileUtils;
 import com.lbsphoto.app.widget.CameraPreview;
+
+import java.io.File;
 
 public class CameraActivity extends BaseActivity {
 
@@ -31,6 +35,17 @@ public class CameraActivity extends BaseActivity {
     }
 
     public void takePic(View view) {
+        final File tmpCameraFile = new File(FileUtils.getExtFilePath(), FileUtils.getExtFileName()+".jpg");
+        cameraPreview.setOutPutDir(tmpCameraFile);
+        cameraPreview.setImpCaptureEnd(new CameraPreview.imlCaptureEnd() {
+            @Override
+            public void getCaptureEnd() {
+                Intent intent = new Intent();
+                intent.putExtra("file", tmpCameraFile);
+                setResult(RESULT_OK, intent);
+                finish();
+            }
+        });
         cameraPreview.takePicture();
     }
 }

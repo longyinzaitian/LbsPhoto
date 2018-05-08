@@ -627,6 +627,10 @@ public class CameraPreview extends TextureView {
                     Toast.makeText(getContext(), "Saved: " + mFile, Toast.LENGTH_SHORT).show();
                     Log.d(TAG, mFile.toString());
                     unlockFocus();
+
+                    if (imlCaptureEnd != null) {
+                        imlCaptureEnd.getCaptureEnd();
+                    }
                 }
             };
             mCaptureSession.stopRepeating();
@@ -711,5 +715,17 @@ public class CameraPreview extends TextureView {
                 }
             }
         }
+    }
+
+    private imlCaptureEnd imlCaptureEnd;
+    public void setImpCaptureEnd(imlCaptureEnd imlCaptureEnd) {
+        this.imlCaptureEnd = imlCaptureEnd;
+    }
+
+    public interface imlCaptureEnd {
+        /**
+         * 拍照结束
+         */
+        void getCaptureEnd();
     }
 }

@@ -69,14 +69,18 @@ public class PhotoUpAlbumHelper extends AsyncTask<Object, Object, Object>{
 			 * Description:这里增加了一个判断：判断照片的名字是否合法，例如.jpg .png    图片名字是不合法的，直接过滤掉
 			 */
 			do {
-				if (cur.getString(photoPathIndex).substring(
-						cur.getString(photoPathIndex).lastIndexOf("/")+1,
-						cur.getString(photoPathIndex).lastIndexOf("."))
+				String photoPath = cur.getString(photoPathIndex);
+				LogUtils.i(TAG, "photoPath : " + photoPath);
+				int lastIndexOfXie = photoPath.lastIndexOf("/");
+				int lastIndexOfPot = photoPath.lastIndexOf(".");
+				if (lastIndexOfPot <= 0
+						||lastIndexOfXie <= 0
+						||photoPath.substring(
+						photoPath.lastIndexOf("/")+1,
+						photoPath.lastIndexOf("."))
 						.replaceAll(" ", "").length()<=0)
 				{
-					Log.d(TAG, "出现了异常图片的地址：cur.getString(photoPathIndex)="+cur.getString(photoPathIndex));
-					Log.d(TAG, "出现了异常图片的地址：cur.getString(photoPathIndex).substring="+cur.getString(photoPathIndex)
-							.substring(cur.getString(photoPathIndex).lastIndexOf("/")+1,cur.getString(photoPathIndex).lastIndexOf(".")));
+					Log.d(TAG, "出现了异常图片的地址：cur.getString(photoPathIndex)="+photoPath);
 				} else {
 					String id = cur.getString(photoIDIndex);
 					String path = cur.getString(photoPathIndex);
