@@ -74,8 +74,6 @@
             android:screenOrientation="portrait"/>
         <activity android:name=".activity.RegisterActivity"
             android:screenOrientation="portrait"/>
-        <activity android:name=".activity.CameraActivity"
-            android:screenOrientation="portrait"/>
         <activity android:name=".activity.CameraFragmentMainActivity"
             android:screenOrientation="portrait"/>
 
