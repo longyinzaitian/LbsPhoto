@@ -413,7 +413,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
 //            }
 //            startActivityForResult(intent, RESULT_CAPTURE_CODE);
 
-            Intent intent = new Intent(MainActivity.this, CameraActivity.class);
+            Intent intent = new Intent(MainActivity.this, CameraFragmentMainActivity.class);
             startActivityForResult(intent, RESULT_CAPTURE_CODE);
         }
     }

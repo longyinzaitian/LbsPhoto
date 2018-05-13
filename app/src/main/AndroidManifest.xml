@@ -6,6 +6,12 @@
     <uses-feature android:name="android.hardware.camera.autofocus"/>
     <uses-feature android:name="android.hardware.location.gps"/>
 
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.FLASHLIGHT" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+
     <!-- Required 一些系统要求的权限，如访问网络等-->
     <uses-permission android:name="${applicationId}.permission.JPUSH_MESSAGE"/>
     <uses-permission android:name="android.permission.RECEIVE_USER_PRESENT"/>
@@ -69,6 +75,8 @@
         <activity android:name=".activity.RegisterActivity"
             android:screenOrientation="portrait"/>
         <activity android:name=".activity.CameraActivity"
+            android:screenOrientation="portrait"/>
+        <activity android:name=".activity.CameraFragmentMainActivity"
             android:screenOrientation="portrait"/>
 
         <provider
