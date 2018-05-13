@@ -93,21 +93,22 @@ public class CameraFragmentMainActivity extends FragmentActivity implements View
 
             case R.id.record_button:
                 if (cameraFragment != null) {
-                    cameraFragment.takePhotoOrCaptureVideo(new CameraFragmentResultAdapter() {
-                                                               @Override
-                                                               public void onVideoRecorded(String filePath) {
-                                                                   Toast.makeText(getBaseContext(), "onVideoRecorded " + filePath, Toast.LENGTH_SHORT).show();
-                                                               }
+                    cameraFragment.takePhotoOrCaptureVideo(
+                            new CameraFragmentResultAdapter() {
+                                   @Override
+                                   public void onVideoRecorded(String filePath) {
+                                       Toast.makeText(getBaseContext(), "onVideoRecorded " + filePath, Toast.LENGTH_SHORT).show();
+                                   }
 
-                                                               @Override
-                                                               public void onPhotoTaken(byte[] bytes, String filePath) {
-                                                                   Toast.makeText(getBaseContext(), "onPhotoTaken " + filePath, Toast.LENGTH_SHORT).show();
-                                                                   Intent intent = new Intent();
-                                                                   intent.putExtra("file", new File(filePath));
-                                                                   setResult(RESULT_OK, intent);
-                                                                   finish();
-                                                               }
-                                                           },
+                                   @Override
+                                   public void onPhotoTaken(byte[] bytes, String filePath) {
+                                       Toast.makeText(getBaseContext(), "图片保存路径：" + filePath, Toast.LENGTH_LONG).show();
+                                       Intent intent = new Intent();
+                                       intent.putExtra("file", new File(filePath));
+                                       setResult(RESULT_OK, intent);
+                                       finish();
+                                   }
+                               },
                             FileUtils.getExtFilePath(),
                             FileUtils.getExtFileName());
                 }
