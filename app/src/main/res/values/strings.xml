@@ -1,16 +1,16 @@
 <resources>
     <string name="app_name">地图相册</string>
     <string name="no_permission_select_image">没有权限，无法选择图片！</string>
-    <string name="cancel_label">Cancel</string>
-    <string name="ok_label">Ok</string>
+    <string name="cancel_label">取消</string>
+    <string name="ok_label">确定</string>
 
     <string name="settings_video_quality_title">Video size %s</string>
-    <string name="settings_photo_quality_title">Photo size</string>
+    <string name="settings_photo_quality_title">图片大小</string>
 
     <!-- Preview Activity -->
-    <string name="preview_controls_confirm">Save</string>
-    <string name="preview_controls_retake">Repeat</string>
-    <string name="preview_controls_cancel">Cancel</string>
-    <string name="preview_controls_crop">Crop</string>
+    <string name="preview_controls_confirm">保存</string>
+    <string name="preview_controls_retake">重复</string>
+    <string name="preview_controls_cancel">取消</string>
+    <string name="preview_controls_crop">剪切</string>
     <string name="preview_controls_original_ratio_label">Original</string>
 </resources>

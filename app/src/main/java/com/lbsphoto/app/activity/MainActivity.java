@@ -7,6 +7,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Bundle;
@@ -44,6 +45,7 @@ import com.lbsphoto.app.application.RequestCode;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
 import com.lbsphoto.app.dbmanager.DBManager;
+import com.lbsphoto.app.util.CoverLoader;
 import com.lbsphoto.app.util.ImageBitmapUtil;
 import com.lbsphoto.app.util.LatLonUtil;
 import com.lbsphoto.app.util.LogUtils;
@@ -53,8 +55,6 @@ import com.lbsphoto.app.util.ThreadCenter;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -124,14 +124,8 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                         if (photoUpImageItem == null) {
                             continue;
                         }
-
-                        final BitmapFactory.Options options = new BitmapFactory.Options();
-                        options.inJustDecodeBounds = true;
-                        BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
-                        options.inSampleSize = ImageBitmapUtil.calculateInSampleSize(options, 50, 50);
-                        options.inJustDecodeBounds = false;
-                        final Bitmap bitmap = BitmapFactory.decodeFile(photoUpImageItem.getImagePath(), options);
-                        reGeoLatLng(photoUpImageItem.getImagePath(), bitmap);
+                        final Bitmap returnBm = rotateBitmap(photoUpImageItem.getImagePath());
+                        reGeoLatLng(photoUpImageItem.getImagePath(), returnBm);
                     }
                 }
             }
@@ -304,12 +298,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void getCameraResultFile(final String cameraFilePath, final String name) {
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(cameraFilePath, options);
-        options.inSampleSize = ImageBitmapUtil.calculateInSampleSize(options, 50, 50);
-        options.inJustDecodeBounds = false;
-        final Bitmap bm = BitmapFactory.decodeFile(cameraFilePath, options);
+        final Bitmap returnBm = rotateBitmap(cameraFilePath);
         LogUtils.i(TAG, "camera file:" + cameraFilePath);
         mapView.post(new Runnable() {
             @Override
@@ -327,9 +316,27 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 mediaConnection(cameraFilePath);
 
                 isCameraResultFile = true;
-                reGeoLatLng(cameraFilePath, bm);
+                reGeoLatLng(cameraFilePath, returnBm);
             }
         });
+    }
+
+    private Bitmap rotateBitmap(String cameraFilePath) {
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(cameraFilePath, options);
+        options.inSampleSize = ImageBitmapUtil.calculateInSampleSize(options, 50, 50);
+        options.inJustDecodeBounds = false;
+        final Bitmap bm = BitmapFactory.decodeFile(cameraFilePath, options);
+
+        // 得到图片的旋转角度
+        int degree = CoverLoader.getBitmapDegree(cameraFilePath);
+        Matrix matrix = new Matrix();
+        if (degree > 0) {
+            // 根据旋转角度，生成旋转矩阵
+            matrix.postRotate(degree);
+        }
+        return Bitmap.createBitmap(bm, 0, 0, bm.getWidth(), bm.getHeight(), matrix, true);
     }
 
     private MediaScannerConnection mMediaConnection;
@@ -389,30 +396,13 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     }
 
     private void selectPhoto(int type) {
-        String timeStamp = new SimpleDateFormat("yyyyMMddHHmmss")
-                .format(new Date());
         String mImagePath = Environment.getExternalStorageDirectory().getAbsolutePath()
                 + File.separator + RequestCode.FILE_PATH;
-        final File tmpCameraFile = new File(mImagePath, timeStamp + ".jpg");
-        if (!tmpCameraFile.getParentFile().exists()) {
-            tmpCameraFile.getParentFile().mkdir();
+        final File tmpCameraFile = new File(mImagePath);
+        if (!tmpCameraFile.exists()) {
+            tmpCameraFile.mkdir();
         }
         if (type == RESULT_CAPTURE_CODE) {
-//            Intent intent = new Intent(
-//                    MediaStore.ACTION_IMAGE_CAPTURE);
-//            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-//                Uri cameraUri = FileProvider.getUriForFile(MainActivity.this,
-//                        "com.lbsphoto.app.fileprovider", tmpCameraFile);
-//                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-//                cameraFile = tmpCameraFile;
-//                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
-//            } else {
-//                Uri cameraUri = Uri.fromFile(tmpCameraFile);
-//                cameraFile = tmpCameraFile;
-//                intent.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
-//            }
-//            startActivityForResult(intent, RESULT_CAPTURE_CODE);
-
             Intent intent = new Intent(MainActivity.this, CameraFragmentMainActivity.class);
             startActivityForResult(intent, RESULT_CAPTURE_CODE);
         }
