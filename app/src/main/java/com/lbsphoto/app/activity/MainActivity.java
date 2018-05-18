@@ -16,8 +16,13 @@ import android.os.Handler;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import com.baidu.location.BDAbstractLocationListener;
 import com.baidu.location.BDLocation;
@@ -34,6 +39,11 @@ import com.baidu.mapapi.map.MarkerOptions;
 import com.baidu.mapapi.map.MyLocationData;
 import com.baidu.mapapi.map.OverlayOptions;
 import com.baidu.mapapi.model.LatLng;
+import com.baidu.mapapi.search.geocode.GeoCodeResult;
+import com.baidu.mapapi.search.geocode.GeoCoder;
+import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
+import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
+import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
 import com.baidu.mapapi.utils.CoordinateConverter;
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.resource.drawable.GlideDrawable;
@@ -44,6 +54,7 @@ import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.application.RequestCode;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
 import com.lbsphoto.app.bean.PhotoUpImageItem;
+import com.lbsphoto.app.bean.PicLocationBean;
 import com.lbsphoto.app.dbmanager.DBManager;
 import com.lbsphoto.app.util.CoverLoader;
 import com.lbsphoto.app.util.ImageBitmapUtil;
@@ -55,15 +66,18 @@ import com.lbsphoto.app.util.ThreadCenter;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author pc
  */
-public class MainActivity extends BaseActivity implements View.OnClickListener {
+public class MainActivity extends BaseActivity implements View.OnClickListener, OnGetGeoCoderResultListener {
     private static final String TAG = MainActivity.class.getSimpleName();
     private static final int RESULT_CAPTURE_CODE = 100;
 
+    private LinearLayout mCityContainer;
     private ImageView albumIm;
     private ImageView settingIm;
     private ImageView cameraIm;
@@ -76,12 +90,16 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
     private long mLastClickTime;
     /** 标记相机拍照返回 */
     private boolean isCameraResultFile = false;
+    private boolean isCameraResultPicLocation = false;
     /** 标记第一次定位 */
     private boolean isFirstLocation = true;
+    private boolean isPicListEnd = false;
 
     public LocationClient mLocationClient = null;
     private MyLocationListener myListener = new MyLocationListener();
     private PhotoUpAlbumHelper photoUpAlbumHelper;
+    private Map<String, PicLocationBean> picCities = new HashMap<>();
+    private GeoCoder geoCoder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,6 +110,10 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         cameraIm = findViewById(R.id.camera_logo);
         mapView = findViewById(R.id.map_view);
         cameraImResult = findViewById(R.id.camera_result);
+        mCityContainer = findViewById(R.id.pic_city_container);
+
+        geoCoder = GeoCoder.newInstance();
+        geoCoder.setOnGetGeoCodeResultListener(this);
 
         photoUpAlbumHelper = PhotoUpAlbumHelper.getHelper();
         photoUpAlbumHelper.init(MainActivity.this);
@@ -128,6 +150,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                         reGeoLatLng(photoUpImageItem.getImagePath(), returnBm);
                     }
                 }
+                isPicListEnd = true;
             }
         });
     }
@@ -316,6 +339,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 mediaConnection(cameraFilePath);
 
                 isCameraResultFile = true;
+                isCameraResultPicLocation = true;
                 reGeoLatLng(cameraFilePath, returnBm);
             }
         });
@@ -379,7 +403,7 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
         if (photoUpAlbumHelper != null) {
             photoUpAlbumHelper.cancel(true);
         }
-
+        geoCoder.destroy();
         ThreadCenter.getInstance().shutDown();
     }
 
@@ -454,6 +478,11 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 markLatLng = reGeoLatLng;
             }
         }
+
+        ReverseGeoCodeOption reverseGeoCodeOption = new ReverseGeoCodeOption();
+        reverseGeoCodeOption.location(markLatLng);
+        geoCoder.reverseGeoCode(reverseGeoCodeOption);
+
         OverlayOptions overlayOptions = new MarkerOptions()
                 .position(markLatLng)
                 .icon(bitmapDescriptor)
@@ -521,5 +550,76 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
                 .setDuration(1000)
                 .setStartDelay(200)
                 .start();
+    }
+
+    @Override
+    public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
+
+    }
+
+    @Override
+    public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
+        String city = reverseGeoCodeResult.getAddressDetail().city;
+        if (!TextUtils.isEmpty(city)) {
+            if (!picCities.containsKey(city)) {
+                LogUtils.i(TAG, "city:" + city + ", location:" + reverseGeoCodeResult.getLocation());
+                PicLocationBean picLocationBean = new PicLocationBean();
+                picLocationBean.latLng = reverseGeoCodeResult.getLocation();
+                picLocationBean.count = 1;
+                picCities.put(city, picLocationBean);
+            } else {
+                PicLocationBean picLocationBean = picCities.get(city);
+                picLocationBean.count +=1;
+                picCities.put(city, picLocationBean);
+            }
+        }
+
+        if (isPicListEnd) {
+            int size = picCities.size();
+            LogUtils.i(TAG, "isPicListEnd");
+            if (isCameraResultPicLocation) {
+                isCameraResultPicLocation = false;
+                mCityContainer.removeAllViews();
+            }
+            ViewGroup.LayoutParams params = mCityContainer.getLayoutParams();
+            params.width = getResources().getDisplayMetrics().widthPixels;
+            mCityContainer.setLayoutParams(params);
+
+            for (final Map.Entry<String, PicLocationBean> entry : picCities.entrySet()) {
+                TextView textView = new TextView(MainActivity.this);
+                textView.setText(entry.getKey()+"("+ entry.getValue().count +"张)");
+                ViewGroup.MarginLayoutParams textParams = (ViewGroup.MarginLayoutParams) textView.getLayoutParams();
+                if (textParams == null) {
+                    textParams = new ViewGroup.MarginLayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    textParams.leftMargin = 20;
+                    textParams.rightMargin = 20;
+                }
+
+                if (size <= 5) {
+                    textParams.leftMargin = 0;
+                    textParams.rightMargin = 0;
+                    textParams.width = (int) (getResources().getDisplayMetrics().widthPixels/(size + 0.0));
+                }
+
+                textView.setLayoutParams(textParams);
+                textView.setGravity(Gravity.CENTER_VERTICAL|Gravity.CENTER_HORIZONTAL);
+                textView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14.0f);
+                textView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        MapStatus.Builder builder = new MapStatus.Builder();
+                        //设置地图中心点,为我们的位置
+                        builder.target(entry.getValue().latLng)
+                                //设置地图缩放级别
+                                .zoom(16.0f);
+                        //animateMapStatus以动画方式更新地图状态，动画耗时 300 ms
+                        mapView.getMap().animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+                    }
+                });
+                mCityContainer.addView(textView);
+            }
+
+            mCityContainer.setBackgroundColor(getResources().getColor(R.color.white));
+        }
     }
 }
