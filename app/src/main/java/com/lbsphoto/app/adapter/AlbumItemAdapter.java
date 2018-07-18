@@ -21,7 +21,7 @@ public class AlbumItemAdapter extends BaseAdapter {
 	private List<PhotoUpImageItem> list;
 	private LayoutInflater layoutInflater;
 	private Context mContext;
-	public AlbumItemAdapter(List<PhotoUpImageItem> list,Context context){
+	public AlbumItemAdapter(List<PhotoUpImageItem> list,Context context) {
 		this.list = list;
 		layoutInflater = LayoutInflater.from(context);
 		mContext = context;

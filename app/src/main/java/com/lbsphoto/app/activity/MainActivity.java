@@ -39,6 +39,7 @@ import com.bumptech.glide.load.resource.drawable.GlideDrawable;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.lbsphoto.app.R;
+import com.lbsphoto.app.application.AppConstant;
 import com.lbsphoto.app.application.LbsPhotoApplication;
 import com.lbsphoto.app.application.RequestCode;
 import com.lbsphoto.app.bean.PhotoUpImageBucket;
@@ -295,8 +296,14 @@ public class MainActivity extends BaseActivity implements View.OnClickListener {
             ThreadCenter.getInstance().executeThread(new Runnable() {
                 @Override
                 public void run() {
-                    cameraFile = (File) data.getSerializableExtra("file");
+//                    cameraFile = (File) data.getSerializableExtra("file");
                     LogUtils.i(TAG, "cameraFile:" + cameraFile);
+
+                    String img_path = data.getStringExtra(AppConstant.KEY.IMG_PATH);
+
+                    int picWidth = data.getIntExtra(AppConstant.KEY.PIC_WIDTH, 0);
+                    int picHeight = data.getIntExtra(AppConstant.KEY.PIC_HEIGHT, 0);
+                    cameraFile = new File(img_path);
                     getCameraResultFile(cameraFile.getAbsolutePath(), cameraFile.getName());
                 }
             });
